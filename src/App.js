@@ -72,7 +72,10 @@ async function searchKalshiMarkets(query) {
     );
     const markets = data.markets || [];
     // Filter to sports series only
-    return markets.filter(m => m.status === "active" && SPORTS_SERIES.some(s => m.event_ticker && m.event_ticker.startsWith(s)))
+    return markets.filter(m => m.status === "active" && SPORTS_SERIES.some(s => 
+  (m.event_ticker && m.event_ticker.startsWith(s)) || 
+  (m.ticker && m.ticker.startsWith(s))
+))
   } catch (err) {
     console.error("Search error:", err);
     return null; // null = API error, distinct from [] = no results
@@ -213,38 +216,6 @@ function makeGame(overrides = {}) {
     teamB,
   };
 }
-
-const SEED_GAMES = [
-  makeGame({
-    sport: "🏀 NBA",
-    title: "Lakers vs Celtics",
-    subtitle: "Regular Season",
-    score: "89–84",
-    clock: "Q3 7:42",
-    pinned: true,
-  }),
-  makeGame({
-    sport: "🏈 NFL",
-    title: "49ers vs Chiefs",
-    subtitle: "Playoffs",
-    score: "17–14",
-    clock: "3rd 9:05",
-  }),
-  makeGame({
-    sport: "⚾ MLB",
-    title: "Yankees vs Astros",
-    subtitle: "Regular Season",
-    score: "4–3",
-    clock: "7th Inning",
-  }),
-  makeGame({
-    sport: "🏒 NHL",
-    title: "Maple Leafs vs Panthers",
-    subtitle: "Overtime",
-    score: "2–2",
-    clock: "OT 3:11",
-  }),
-];
 
 // ─── KELLY CALCULATOR ─────────────────────────────────────────────────────────
 function KellyCalc({ defaultOdds, onDuplicate, onRemove, isOnly }) {
@@ -1632,7 +1603,7 @@ function SearchTab({ onAddGame, dashboardIds }) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-  const [games, setGames] = useState(SEED_GAMES);
+  const [games, setGames] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [alertTarget, setAlertTarget] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
