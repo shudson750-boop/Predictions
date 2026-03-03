@@ -72,7 +72,7 @@ async function searchKalshiMarkets(query) {
     );
     const markets = data.markets || [];
     // Filter to sports series only
-    return markets.filter(m => m.status === "active")
+    return markets.filter(m => m.status === "active" && SPORTS_SERIES.some(s => m.event_ticker && m.event_ticker.startsWith(s)))
   } catch (err) {
     console.error("Search error:", err);
     return null; // null = API error, distinct from [] = no results
