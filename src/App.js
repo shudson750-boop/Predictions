@@ -64,21 +64,22 @@ async function kalshiRequest(path) {
 // Search for live sports markets matching a query
 async function searchKalshiMarkets(query) {
   try {
-    // Fetch open markets, filtering by status
-    const data = await kalshiRequest(
-      `/markets?status=open&limit=50${
-        query ? `&search=${encodeURIComponent(query)}` : ""
-      }`
-    );
-    const markets = data.markets || [];
-    // Filter to sports series only
-    return markets.filter(m => m.status === "active" && SPORTS_SERIES.some(s => 
-  (m.event_ticker && m.event_ticker.startsWith(s)) || 
-  (m.ticker && m.ticker.startsWith(s))
-))
+    const results = [];
+    for (const series of SPORTS_SERIES) {
+      const data = await kalshiRequest(
+        `markets?status=open&limit=20&series_ticker=${encodeURIComponent(series)}`
+      );
+      if (data && data.markets) {
+        const filtered = data.markets.filter(m =>
+          m.title && m.title.toLowerCase().includes(query.toLowerCase())
+        );
+        results.push(...filtered);
+      }
+    }
+    return results;
   } catch (err) {
     console.error("Search error:", err);
-    return null; // null = API error, distinct from [] = no results
+    return null;
   }
 }
 
