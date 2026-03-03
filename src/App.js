@@ -50,13 +50,7 @@ const KALSHI_KEY = process.env.REACT_APP_KALSHI_API_KEY || "";
 const KALSHI_BASE = "https://trading-api.kalshi.com/trade-api/v2";
 
 // Sports series prefixes we care about
-const SPORTS_SERIES = [
-  "NBAWIN",
-  "NFLWIN",
-  "MLBWIN",
-  "NHLWIN",
-  "MCSWIN",
-  "SOCCERWIN",
+const SPORTS_SERIES = ["NBAWIN", "NFLWIN", "MLBWIN", "NHLWIN", "MCSWIN", "SOCCERWIN"];
 ];
 
 async function kalshiRequest(path) {
@@ -103,7 +97,7 @@ async function fetchMarketOdds(ticker) {
 
 // Convert Kalshi market data to our app's game format
 function kalshiMarketToGame(market) {
-  const yesPrice = (market.yes_ask || market.yes_bid || 50) / 100;
+ const yesPrice = +((market.yes_ask || market.yes_bid || 50) / 100).toFixed(3);
   const noPrice = +(1 - yesPrice).toFixed(3);
   // Extract team names from the market title
   const title = market.title || market.subtitle || "Unknown Market";
@@ -136,12 +130,12 @@ function kalshiMarketToGame(market) {
 }
 
 function detectSport(ticker = "") {
-  if (ticker.startsWith("NBA")) return "🏀 NBA";
-  if (ticker.startsWith("NFL")) return "🏈 NFL";
-  if (ticker.startsWith("MLB")) return "⚾ MLB";
-  if (ticker.startsWith("NHL")) return "🏒 NHL";
-  if (ticker.startsWith("MCS")) return "🎾 Tennis";
-  if (ticker.startsWith("SOCCER")) return "⚽ Soccer";
+  if (ticker.startsWith("KXNBA"))    return "🏀 NBA";
+  if (ticker.startsWith("KXNFL"))    return "🏈 NFL";
+  if (ticker.startsWith("KXMLB"))    return "⚾ MLB";
+  if (ticker.startsWith("KXNHL"))    return "🏒 NHL";
+  if (ticker.startsWith("KXNCAAMB")) return "🏀 NCAAB";
+  if (ticker.startsWith("KXNCAAFB")) return "🏈 NCAAF";
   return "🏆 Sports";
 }
 
