@@ -73,7 +73,6 @@ async function searchKalshiMarkets(query) {
     const markets = data.markets || [];
     // Filter to sports series only
     return markets.filter(m => m.status === "active")
-    );
   } catch (err) {
     console.error("Search error:", err);
     return null; // null = API error, distinct from [] = no results
