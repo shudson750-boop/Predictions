@@ -1,10 +1,8 @@
 export default async function handler(req, res) {
-  // Allow requests from your app
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -16,7 +14,7 @@ export default async function handler(req, res) {
     const url = `https://trading-api.kalshi.com/trade-api/v2/${path}`;
     const response = await fetch(url, {
       headers: {
-        "Authorization": `Bearer ${process.env.REACT_APP_KALSHI_API_KEY}`,
+        "Authorization": `Token ${process.env.REACT_APP_KALSHI_API_KEY}`,
         "Content-Type": "application/json",
       },
     });
