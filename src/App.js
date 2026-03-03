@@ -60,12 +60,10 @@ const SPORTS_SERIES = [
 ];
 
 async function kalshiRequest(path) {
-  const res = await fetch(`${KALSHI_BASE}${path}`, {
-    headers: {
-      Authorization: `Bearer ${KALSHI_KEY}`,
-      "Content-Type": "application/json",
-    },
-  });
+  // Route through our Vercel proxy instead of calling Kalshi directly
+  // This avoids CORS issues since the proxy runs server-side
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  const res = await fetch(`/api/kalshi?path=${encodeURIComponent(cleanPath)}`);
   if (!res.ok) throw new Error(`Kalshi API error: ${res.status}`);
   return res.json();
 }
