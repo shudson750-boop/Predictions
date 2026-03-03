@@ -50,8 +50,7 @@ const KALSHI_KEY = process.env.REACT_APP_KALSHI_API_KEY || "";
 const KALSHI_BASE = "https://trading-api.kalshi.com/trade-api/v2";
 
 // Sports series prefixes we care about
-const SPORTS_SERIES = ["NBAWIN", "NFLWIN", "MLBWIN", "NHLWIN", "MCSWIN", "SOCCERWIN"];
-];
+const SPORTS_SERIES = ["KXNBAGAME", "KXNFLGAME", "KXMLBGAME", "KXNHLGAME", "KXNCAAMBGAME", "KXNCAAFBGAME"];
 
 async function kalshiRequest(path) {
   // Route through our Vercel proxy instead of calling Kalshi directly
