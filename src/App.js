@@ -76,13 +76,24 @@ async function searchKalshiMarkets(query) {
         results.push(...filtered);
       }
     }
-    return results;
+
+    // Deduplicate — group by event_ticker, keep only one market per game
+    const seen = {};
+    const deduped = [];
+    for (const m of results) {
+      const key = m.event_ticker || m.ticker;
+      if (!seen[key]) {
+        seen[key] = true;
+        deduped.push(m);
+      }
+    }
+    return deduped;
+
   } catch (err) {
     console.error("Search error:", err);
     return null;
   }
 }
-
 // Get current odds for a specific market ticker
 async function fetchMarketOdds(ticker) {
   try {
