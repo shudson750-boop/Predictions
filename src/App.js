@@ -1328,10 +1328,10 @@ function SearchTab({ onAddGame, dashboardIds }) {
   const [apiError, setApiError] = useState(false);
   const [confirmGame, setConfirmGame] = useState(null);
   const [sportFilter, setSportFilter] = useState("all");
+  const [refreshKey, setRefreshKey] = useState(0);
   const searchRef = useRef(null);
 
-  // Debounced search — waits 600ms after you stop typing before firing
-  // This avoids hammering the API with every single keypress
+  // Load all markets immediately on mount; debounce typed queries by 600ms
   useEffect(() => {
     if (searchRef.current) clearTimeout(searchRef.current);
     searchRef.current = setTimeout(async () => {
@@ -1345,9 +1345,18 @@ function SearchTab({ onAddGame, dashboardIds }) {
         setResults(data.map(kalshiMarketToGame));
       }
       setLoading(false);
-    }, 600);
+    }, query.length > 0 ? 600 : 0);
     return () => clearTimeout(searchRef.current);
-  }, [query]);
+  }, [query, refreshKey]);
+
+  const handleLiveNow = () => {
+    setSportFilter("all");
+    if (query === "") {
+      setRefreshKey((k) => k + 1);
+    } else {
+      setQuery("");
+    }
+  };
 
   const sports = ["all", ...new Set(results.map((g) => g.sport))];
   const filtered = results.filter(
@@ -1382,12 +1391,31 @@ function SearchTab({ onAddGame, dashboardIds }) {
         </p>
       </div>
 
-      <input
-        style={{ ...inputStyle, marginBottom: 12 }}
-        placeholder="e.g. Lakers, Chiefs, Yankees…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
+        <input
+          style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
+          placeholder="e.g. Lakers, Chiefs, Yankees…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <button
+          onClick={handleLiveNow}
+          style={{
+            background: !query ? T.btnPrimary : T.badge,
+            border: `1px solid ${!query ? T.btnPrimary : T.badgeBorder}`,
+            color: !query ? T.btnPrimaryTxt : T.textSecond,
+            padding: "8px 13px",
+            borderRadius: 7,
+            cursor: "pointer",
+            fontSize: "0.78rem",
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          ● Live Now
+        </button>
+      </div>
 
       {results.length > 0 && (
         <div
@@ -1472,11 +1500,11 @@ function SearchTab({ onAddGame, dashboardIds }) {
           No live markets found for "{query}"
         </div>
       )}
-      {!loading && !apiError && KALSHI_KEY && !query && (
+      {!loading && !apiError && KALSHI_KEY && results.length === 0 && !query && (
         <div
           style={{ color: T.textMuted, fontSize: "0.82rem", padding: "12px 0" }}
         >
-          Start typing to search live Kalshi markets
+          No live markets found
         </div>
       )}
 
