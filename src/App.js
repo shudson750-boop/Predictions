@@ -1165,56 +1165,55 @@ function GameWidget({
           </div>
         </div>
 
-        {/* Compact odds — favorite gets green %, underdog gets red % */}
+        {/* Compact odds — left: team name + opening %; right: live % in team color + odds */}
         <div style={{ display: "flex", gap: 8 }}>
-          {(() => {
-            const teamAIsFav = game.openKalshi >= 0.5;
-            const FAV_COLOR   = "#16a34a"; // green
-            const DOG_COLOR   = "#dc2626"; // red
-            const entries = [
-              {
-                label:    game.teamA,
-                prob:     game.kalshi.yes,
-                d:        kDiff,
-                pctColor: teamAIsFav ? FAV_COLOR : DOG_COLOR,
-                teamHex:  getTeamColor(game.teamA),
-              },
-              {
-                label:    game.teamB,
-                prob:     game.kalshi.no,
-                d:        -kDiff,
-                pctColor: teamAIsFav ? DOG_COLOR : FAV_COLOR,
-                teamHex:  getTeamColor(game.teamB),
-              },
-            ];
-            return entries.map(({ label, prob, d, pctColor, teamHex }) => (
-              <div
-                key={label}
-                style={{
-                  background: hexToRgba(teamHex, 0.10),
-                  border: `1px solid ${hexToRgba(teamHex, 0.28)}`,
-                  borderRadius: 7,
-                  padding: "7px 11px",
-                  flex: 1,
-                }}
-              >
-                <div style={{ fontSize: "0.65rem", color: T.textMuted, marginBottom: 3, fontWeight: 600 }}>
+          {[
+            {
+              label:    game.teamA,
+              prob:     game.kalshi.yes,
+              openProb: game.openKalshi,
+              teamHex:  getTeamColor(game.teamA),
+            },
+            {
+              label:    game.teamB,
+              prob:     game.kalshi.no,
+              openProb: +(1 - game.openKalshi).toFixed(3),
+              teamHex:  getTeamColor(game.teamB),
+            },
+          ].map(({ label, prob, openProb, teamHex }) => (
+            <div
+              key={label}
+              style={{
+                background: hexToRgba(teamHex, 0.10),
+                border: `1px solid ${hexToRgba(teamHex, 0.28)}`,
+                borderRadius: 7,
+                padding: "7px 10px",
+                flex: 1,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "stretch",
+              }}
+            >
+              {/* Left: team name + opening prob */}
+              <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 }}>
+                <span style={{ fontSize: "0.65rem", color: T.textMuted, fontWeight: 600, lineHeight: 1.2 }}>
                   {label}
-                </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-                  <span style={{ color: pctColor, fontWeight: 800, fontSize: "1rem" }}>
-                    {pct(prob)}
-                  </span>
-                  <span style={{ fontSize: "0.73rem", color: T.textMuted }}>
-                    {toAmerican(prob)}
-                  </span>
-                  <span style={{ color: arrowColor(d), fontWeight: 700, fontSize: "0.78rem" }}>
-                    {arrow(d)}
-                  </span>
-                </div>
+                </span>
+                <span style={{ fontSize: "0.6rem", color: T.textFaint }}>
+                  Open: {pct(openProb)}
+                </span>
               </div>
-            ));
-          })()}
+              {/* Right: live % + odds */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center" }}>
+                <span style={{ color: teamHex, fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1 }}>
+                  {pct(prob)}
+                </span>
+                <span style={{ fontSize: "0.68rem", color: T.textMuted, marginTop: 1 }}>
+                  {toAmerican(prob)}
+                </span>
+              </div>
+            </div>
+          ))}
           {game.alertTriggered && (
             <div
               style={{
