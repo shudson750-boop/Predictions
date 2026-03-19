@@ -11,38 +11,38 @@ import {
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
 const T = {
-  pageBg: "#c17f52",
-  navBg: "#a86b3f",
-  navBorder: "#9a5f35",
-  widget: "#f5efe6",
-  widgetBorder: "#e0d5c5",
-  calcCard: "#ede4d6",
-  calcBorder: "#d9ceba",
-  input: "#faf7f2",
-  inputBorder: "#cfc4b0",
-  textPrimary: "#2c1f0e",
-  textSecond: "#7a5c3a",
-  textMuted: "#a88060",
-  textFaint: "#c4a882",
-  teamA: "#2d7d46",
-  teamB: "#2563a8",
-  live: "#c0392b",
-  pinned: "#c47f1a",
-  alert: "#c0392b",
-  btnPrimary: "#a86b3f",
-  btnPrimaryTxt: "#faf7f2",
-  badge: "#e8ddd0",
-  badgeBorder: "#d0c4b0",
-  sectionTxt: "#8a6040",
-  divider: "#ddd0bc",
-  modalBg: "#f5efe6",
-  modalBorder: "#d9ceba",
-  notifBg: "#f0e8da",
-  notifBorder: "#c8a870",
-  notifTxt: "#7a4a10",
-  apiBg: "#ede4d6",
-  apiBorder: "#d9ceba",
-  apiTxt: "#9a7050",
+  pageBg: "#2D5A27",       // forest / hunter green
+  navBg: "#1B3D16",        // darker green for nav bar
+  navBorder: "#143011",
+  widget: "#FFFFFF",       // white widget cards
+  widgetBorder: "#D8D8D8",
+  calcCard: "#F4F4F4",     // very light gray for inner calc panels
+  calcBorder: "#E0E0E0",
+  input: "#FAFAFA",
+  inputBorder: "#C8C8C8",
+  textPrimary: "#111111",  // near-black body text
+  textSecond: "#333333",
+  textMuted: "#666666",
+  textFaint: "#999999",
+  teamA: "#C0392B",        // red  — Team A
+  teamB: "#1565C0",        // blue — Team B
+  live: "#C0392B",
+  pinned: "#D4A017",
+  alert: "#C0392B",
+  btnPrimary: "#2D5A27",   // forest green buttons
+  btnPrimaryTxt: "#FFFFFF",
+  badge: "#EFEFEF",
+  badgeBorder: "#D4D4D4",
+  sectionTxt: "#444444",
+  divider: "#E2E2E2",
+  modalBg: "#FFFFFF",
+  modalBorder: "#D8D8D8",
+  notifBg: "#FFFBEA",
+  notifBorder: "#F0C040",
+  notifTxt: "#5C3D00",
+  apiBg: "#F4F4F4",
+  apiBorder: "#E0E0E0",
+  apiTxt: "#666666",
 };
 
 // ─── KALSHI API ───────────────────────────────────────────────────────────────
@@ -2046,10 +2046,10 @@ export default function App() {
         }}
       >
         <div>
-          <div style={{ fontWeight: 800, fontSize: "1rem", color: "#faf7f2" }}>
+          <div style={{ fontWeight: 800, fontSize: "1rem", color: "#FFFFFF" }}>
             LiveMarkets
           </div>
-          <div style={{ fontSize: "0.58rem", color: "#d4b896", marginTop: -1 }}>
+          <div style={{ fontSize: "0.58rem", color: "#A8D5A2", marginTop: -1 }}>
             Kalshi Sports Tracker
           </div>
         </div>
@@ -2062,9 +2062,9 @@ export default function App() {
               key={t}
               onClick={() => setTab(t)}
               style={{
-                background: tab === t ? "#00000022" : "none",
+                background: tab === t ? "#00000033" : "none",
                 border: "none",
-                color: tab === t ? "#faf7f2" : "#d4b896",
+                color: tab === t ? "#FFFFFF" : "#A8D5A2",
                 padding: "6px 14px",
                 borderRadius: 6,
                 cursor: "pointer",
@@ -2083,7 +2083,7 @@ export default function App() {
             alignItems: "center",
             gap: 6,
             fontSize: "0.72rem",
-            color: "#faf7f2",
+            color: "#FFFFFF",
           }}
         >
           <span
