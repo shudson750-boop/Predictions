@@ -1302,7 +1302,7 @@ function SearchTab({ onAddGame, dashboardIds }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
-  const [confirmGame, setConfirmGame] = useState(null);
+  // confirmGame removed — single-click add
   const [sportFilter, setSportFilter] = useState("all");
   const [refreshKey, setRefreshKey] = useState(0);
   const [liveNowMode, setLiveNowMode] = useState(false);
@@ -1497,7 +1497,7 @@ function SearchTab({ onAddGame, dashboardIds }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 9 }}>
         {filtered.map((g) => {
           const added = dashboardIds.includes(g.id);
           return (
@@ -1505,126 +1505,67 @@ function SearchTab({ onAddGame, dashboardIds }) {
               key={g.id}
               style={{
                 background: T.widget,
-                border: `1px solid ${T.widgetBorder}`,
+                border: `1px solid ${added ? T.badgeBorder : T.widgetBorder}`,
                 borderRadius: 10,
-                padding: "13px 15px",
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                flexWrap: "wrap",
+                padding: "12px 13px",
                 boxShadow: "0 1px 4px #0000001a",
+                display: "flex",
+                flexDirection: "column",
+                gap: 9,
+                opacity: added ? 0.7 : 1,
               }}
             >
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 7,
-                    alignItems: "center",
-                    marginBottom: 5,
-                  }}
-                >
-                  <span
-                    style={{
-                      background: T.badge,
-                      border: `1px solid ${T.badgeBorder}`,
-                      borderRadius: 5,
-                      padding: "2px 7px",
-                      fontSize: "0.7rem",
-                      color: T.textSecond,
-                    }}
-                  >
-                    {g.sport}
-                  </span>
-                  <span
-                    style={{
-                      color: T.live,
-                      fontSize: "0.67rem",
-                      fontWeight: 700,
-                    }}
-                  >
-                    ● LIVE
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontWeight: 600,
-                    color: T.textPrimary,
-                    marginBottom: 2,
-                  }}
-                >
-                  {g.title}
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.72rem",
-                    color: T.textMuted,
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {g.id}
-                </div>
+              {/* Sport + live badges */}
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span style={{ background: T.badge, border: `1px solid ${T.badgeBorder}`, borderRadius: 5, padding: "2px 7px", fontSize: "0.68rem", color: T.textSecond }}>
+                  {g.sport}
+                </span>
+                <span style={{ color: T.live, fontSize: "0.65rem", fontWeight: 700 }}>● LIVE</span>
               </div>
-              <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
+
+              {/* Title */}
+              <div style={{ fontWeight: 700, fontSize: "0.92rem", color: T.textPrimary, lineHeight: 1.3 }}>
+                {g.title}
+              </div>
+
+              {/* Odds row */}
+              <div style={{ display: "flex", gap: 7 }}>
                 {[
-                  {
-                    label: `${g.teamA} WIN`,
-                    val: g.kalshi.yes,
-                    color: T.teamA,
-                  },
-                  { label: `${g.teamB} WIN`, val: g.kalshi.no, color: T.teamB },
+                  { label: g.teamA, val: g.kalshi.yes, color: T.teamA },
+                  { label: g.teamB, val: g.kalshi.no,  color: T.teamB },
                 ].map(({ label, val, color }) => (
-                  <div key={label} style={{ textAlign: "center" }}>
-                    <div
-                      style={{
-                        fontSize: "0.63rem",
-                        color: T.textMuted,
-                        marginBottom: 2,
-                      }}
-                    >
-                      {label}
-                    </div>
-                    <div style={{ color, fontWeight: 700 }}>
-                      {toAmerican(val)}
-                    </div>
-                    <div style={{ fontSize: "0.67rem", color: T.textMuted }}>
-                      {pct(val)}
+                  <div key={label} style={{ flex: 1, background: T.calcCard, border: `1px solid ${T.calcBorder}`, borderRadius: 6, padding: "5px 8px" }}>
+                    <div style={{ fontSize: "0.6rem", color: T.textMuted, fontWeight: 600, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                      <span style={{ color, fontWeight: 800, fontSize: "0.95rem" }}>{pct(val)}</span>
+                      <span style={{ fontSize: "0.68rem", color: T.textMuted }}>{toAmerican(val)}</span>
                     </div>
                   </div>
                 ))}
-                <button
-                  style={{
-                    background: added ? T.badge : T.btnPrimary,
-                    border: `1px solid ${added ? T.badgeBorder : T.btnPrimary}`,
-                    color: added ? T.textMuted : T.btnPrimaryTxt,
-                    padding: "7px 14px",
-                    borderRadius: 6,
-                    cursor: added ? "default" : "pointer",
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    opacity: added ? 0.7 : 1,
-                  }}
-                  onClick={() => !added && setConfirmGame(g)}
-                  disabled={added}
-                >
-                  {added ? "✓ Added" : "+ Add"}
-                </button>
               </div>
+
+              {/* Add button */}
+              <button
+                style={{
+                  background: added ? T.badge : T.btnPrimary,
+                  border: `1px solid ${added ? T.badgeBorder : T.btnPrimary}`,
+                  color: added ? T.textMuted : T.btnPrimaryTxt,
+                  padding: "6px 0",
+                  borderRadius: 6,
+                  cursor: added ? "default" : "pointer",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  width: "100%",
+                }}
+                onClick={() => !added && onAddGame(g)}
+                disabled={added}
+              >
+                {added ? "✓ Added" : "+ Add to Dashboard"}
+              </button>
             </div>
           );
         })}
       </div>
-
-      {confirmGame && (
-        <ConfirmModal
-          game={confirmGame}
-          onConfirm={() => {
-            onAddGame(confirmGame);
-            setConfirmGame(null);
-          }}
-          onClose={() => setConfirmGame(null)}
-        />
-      )}
     </div>
   );
 }
