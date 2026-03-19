@@ -1124,11 +1124,14 @@ function GameWidget({
             display: "flex",
             gap: 10,
             alignItems: "center",
-            marginBottom: game.ouLine ? 5 : 10,
+            marginBottom: 5,
           }}
         >
+          <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
+            Score
+          </span>
           <span style={{ fontWeight: 700, color: T.textPrimary }}>
-            {game.score}
+            {game.score !== "—" ? game.score : "—"}
           </span>
           <span
             style={{
@@ -1142,54 +1145,52 @@ function GameWidget({
           >
             {game.clock}
           </span>
-          <span style={{ fontSize: "0.7rem", color: T.textMuted }}>
-            {game.subtitle}
-          </span>
         </div>
 
-        {/* O/U row */}
-        {game.ouLine && (
-          <div
+        {/* O/U row — always visible */}
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            marginBottom: 10,
+            fontSize: "0.72rem",
+          }}
+        >
+          <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
+            O/U
+          </span>
+          <span
             style={{
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-              marginBottom: 10,
-              fontSize: "0.72rem",
+              background: T.badge,
+              border: `1px solid ${T.badgeBorder}`,
+              borderRadius: 4,
+              padding: "1px 7px",
+              color: game.ouLine ? T.textSecond : T.textFaint,
+              fontWeight: 600,
             }}
           >
-            <span
-              style={{
-                background: T.badge,
-                border: `1px solid ${T.badgeBorder}`,
-                borderRadius: 4,
-                padding: "1px 7px",
-                color: T.textSecond,
-                fontWeight: 600,
-              }}
-            >
-              O/U {game.ouLine}
-            </span>
-            {game.currentTotal > 0 && (
-              <span style={{ color: T.textMuted }}>
-                {game.currentTotal} pts ·{" "}
-                <span
-                  style={{
-                    color:
-                      game.currentTotal > parseFloat(game.ouLine)
-                        ? T.alert
-                        : T.teamA,
-                    fontWeight: 600,
-                  }}
-                >
-                  {game.currentTotal > parseFloat(game.ouLine)
-                    ? "↑ Over"
-                    : "↓ Under"}
-                </span>
+            {game.ouLine || "—"}
+          </span>
+          {game.ouLine && game.currentTotal > 0 && (
+            <span style={{ color: T.textMuted }}>
+              {game.currentTotal} pts ·{" "}
+              <span
+                style={{
+                  color:
+                    game.currentTotal > parseFloat(game.ouLine)
+                      ? T.alert
+                      : T.teamA,
+                  fontWeight: 600,
+                }}
+              >
+                {game.currentTotal > parseFloat(game.ouLine)
+                  ? "↑ Over"
+                  : "↓ Under"}
               </span>
-            )}
-          </div>
-        )}
+            </span>
+          )}
+        </div>
 
         {/* Compact odds */}
         <div style={{ display: "flex", gap: 8 }}>
