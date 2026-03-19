@@ -995,13 +995,14 @@ function GameWidget({
   onSwap,
 }) {
   // Apply swap flag: YES side always stays tied to kalshi.yes/teamA internally;
-  // swapped=true just flips the display so the user can correct mis-labeled markets.
-  const aName  = game.swapped ? game.teamB      : game.teamA;
-  const bName  = game.swapped ? game.teamA      : game.teamB;
-  const aProb  = game.swapped ? game.kalshi.no  : game.kalshi.yes;
-  const bProb  = game.swapped ? game.kalshi.yes : game.kalshi.no;
-  const aOpen  = game.swapped ? +(1 - game.openKalshi).toFixed(3) : game.openKalshi;
-  const bOpen  = game.swapped ? game.openKalshi : +(1 - game.openKalshi).toFixed(3);
+  // Swap only re-labels the teams (name + color). Probabilities stay in their
+  // positions: left box = kalshi.yes (YES side), right box = kalshi.no (NO side).
+  const aName  = game.swapped ? game.teamB : game.teamA;
+  const bName  = game.swapped ? game.teamA : game.teamB;
+  const aProb  = game.kalshi.yes;
+  const bProb  = game.kalshi.no;
+  const aOpen  = game.openKalshi;
+  const bOpen  = +(1 - game.openKalshi).toFixed(3);
   const kDiff  = aProb - aOpen;
   const arrow = (d) => (d > 0.005 ? "↑" : d < -0.005 ? "↓" : "→");
   const arrowColor = (d) =>
