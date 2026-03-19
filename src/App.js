@@ -45,6 +45,126 @@ const T = {
   apiTxt: "#666666",
 };
 
+// ─── TEAM COLORS ──────────────────────────────────────────────────────────────
+// Primary brand color keyed by common team name (case-insensitive lookup via getTeamColor)
+const TEAM_COLORS = {
+  // Ivy / A-10
+  "penn": "#990000", "princeton": "#FF671F", "harvard": "#A51C30", "yale": "#00356B",
+  "columbia": "#9BDDFF", "cornell": "#B31B1B", "brown": "#4E3629", "dartmouth": "#00693E",
+  "saint louis": "#003DA5", "vcu": "#000000", "dayton": "#CE1141", "rhode island": "#002147",
+  "george mason": "#006633", "george washington": "#033A6A", "fordham": "#8B1A1A",
+  "richmond": "#990000", "la salle": "#00529B", "massachusetts": "#881124",
+  "davidson": "#CC0000", "duquesne": "#002B72",
+  // ACC
+  "duke": "#003087", "north carolina": "#4B9CD3", "nc state": "#CC0000",
+  "virginia": "#232D4B", "virginia tech": "#CF4420", "miami": "#F47321",
+  "florida state": "#782F40", "clemson": "#F66733", "louisville": "#AD0000",
+  "pittsburgh": "#003594", "wake forest": "#9E7E38", "boston college": "#8A0000",
+  "notre dame": "#0C2340", "georgia tech": "#B3A369", "syracuse": "#D44500",
+  // Big Ten
+  "michigan": "#00274C", "michigan state": "#18453B", "ohio state": "#BB0000",
+  "penn state": "#041E42", "indiana": "#990000", "purdue": "#CEB888",
+  "iowa": "#FFCD00", "illinois": "#E84A27", "wisconsin": "#C5050C",
+  "minnesota": "#7A0019", "nebraska": "#E41C38", "northwestern": "#4E2683",
+  "maryland": "#E03A3E", "rutgers": "#CC0033",
+  // Big 12
+  "kansas": "#0051A5", "kansas state": "#512888", "oklahoma": "#841617",
+  "oklahoma state": "#FF7300", "texas": "#BF5700", "texas tech": "#CC0000",
+  "baylor": "#154734", "tcu": "#4D1979", "west virginia": "#002855",
+  "iowa state": "#C8102E",
+  // SEC
+  "alabama": "#9E1B32", "auburn": "#0C2340", "georgia": "#BA0C2F",
+  "florida": "#0021A5", "tennessee": "#FF8200", "lsu": "#461D7C",
+  "kentucky": "#0033A0", "ole miss": "#CE1126", "mississippi": "#CE1126",
+  "mississippi state": "#660000", "vanderbilt": "#866D4B", "south carolina": "#73000A",
+  "arkansas": "#9D2235", "missouri": "#F1B82D", "texas a&m": "#500000",
+  // Big East
+  "villanova": "#00205B", "georgetown": "#041E42", "connecticut": "#000E2F",
+  "uconn": "#000E2F", "st. john's": "#CC0000", "marquette": "#003366",
+  "providence": "#002147", "seton hall": "#004B98", "xavier": "#0C2340",
+  "creighton": "#005CA9", "depaul": "#005CB9", "butler": "#13294B",
+  // American Athletic
+  "cincinnati": "#E00122", "houston": "#C8102E", "south florida": "#006747",
+  "ucf": "#BA9B37", "memphis": "#003087", "tulsa": "#002D62",
+  "temple": "#9D2235", "east carolina": "#4B1869", "smu": "#0038A8",
+  "tulane": "#006747",
+  // Sun Belt / C-USA / Southland
+  "troy": "#CC0000", "appalachian state": "#000000", "georgia state": "#002857",
+  "louisiana": "#C10230", "mcneese": "#006B3F", "sam houston": "#EB6E1F",
+  "lamar": "#CC0000", "nicholls": "#CC0000", "northwestern state": "#4F2D7F",
+  "middle tennessee": "#003F87", "western kentucky": "#C60C30", "charlotte": "#046A38",
+  "fau": "#003366", "north texas": "#00853E", "utsa": "#002A5C",
+  "utep": "#FF6600", "louisiana tech": "#002F6C", "rice": "#002469",
+  "southern miss": "#FFB300", "uab": "#1E6B24",
+  // Mountain West
+  "nevada": "#003366", "fresno state": "#CC0000", "new mexico": "#BA0C2F",
+  "colorado state": "#1E4D2B", "san diego state": "#C41230", "boise state": "#0033A0",
+  "wyoming": "#492F24", "unlv": "#CF0A2C", "utah state": "#00263A",
+  "air force": "#003087", "hawaii": "#024731",
+  // Pac-12
+  "arizona": "#003366", "arizona state": "#8C1D40", "ucla": "#2D68C4",
+  "usc": "#990000", "stanford": "#8C1515", "california": "#003262",
+  "cal": "#003262", "oregon": "#154733", "oregon state": "#DC4405",
+  "washington": "#4B2E83", "washington state": "#981E32",
+  "utah": "#CC0000", "colorado": "#CFB87C",
+  // NBA
+  "lakers": "#552583", "celtics": "#007A33", "warriors": "#1D428A",
+  "bulls": "#CE1141", "knicks": "#006BB6", "heat": "#98002E",
+  "bucks": "#00471B", "nets": "#000000", "76ers": "#006BB6",
+  "raptors": "#CE1141", "cavaliers": "#860038", "pistons": "#C8102E",
+  "pacers": "#002D62", "hornets": "#1D1160", "hawks": "#C1D32F",
+  "magic": "#0077C0", "wizards": "#002B5C", "spurs": "#C4CED4",
+  "mavericks": "#00538C", "rockets": "#CE1141", "thunder": "#007AC1",
+  "grizzlies": "#5D76A9", "pelicans": "#0C2340", "clippers": "#C8102E",
+  "kings": "#5A2D81", "suns": "#1D1160", "nuggets": "#0E2240",
+  "jazz": "#002B5C", "blazers": "#E03A3E", "trail blazers": "#E03A3E",
+  "timberwolves": "#0C2340", "wolves": "#0C2340",
+  // NHL
+  "bruins": "#FFB81C", "sabres": "#003087", "red wings": "#CE1126",
+  "canadiens": "#AF1E2D", "senators": "#E31837", "maple leafs": "#003E7E",
+  "panthers": "#041E42", "lightning": "#002868", "capitals": "#041E42",
+  "hurricanes": "#CC0000", "blue jackets": "#002654", "rangers": "#0038A8",
+  "islanders": "#003087", "flyers": "#F74902", "penguins": "#FCB514",
+  "blackhawks": "#CF0A2C", "predators": "#FFB81C", "blues": "#002F87",
+  "jets": "#041E42", "wild": "#154734", "avalanche": "#6F263D",
+  "stars": "#006847", "coyotes": "#8C2633", "kings": "#111111",
+  "ducks": "#F47A38", "sharks": "#006D75", "flames": "#C8102E",
+  "oilers": "#FF4C00", "canucks": "#00205B", "golden knights": "#B4975A",
+  // NFL
+  "patriots": "#002244", "bills": "#00338D", "dolphins": "#008E97",
+  "jets": "#125740", "ravens": "#241773", "steelers": "#FFB612",
+  "browns": "#FF3C00", "bengals": "#FB4F14", "texans": "#03202F",
+  "colts": "#002C5F", "jaguars": "#006778", "titans": "#4B92DB",
+  "broncos": "#FB4F14", "chiefs": "#E31837", "raiders": "#000000",
+  "chargers": "#0080C6", "bears": "#0B162A", "lions": "#0076B6",
+  "packers": "#203731", "vikings": "#4F2683", "falcons": "#A71930",
+  "panthers": "#0085CA", "saints": "#D3BC8D", "buccaneers": "#D50A0A",
+  "giants": "#0B2265", "eagles": "#004C54", "cowboys": "#003594",
+  "commanders": "#5A1414", "49ers": "#AA0000", "seahawks": "#002244",
+  "rams": "#003594", "cardinals": "#97233F",
+};
+
+/** Returns the primary hex color for a team name (case-insensitive, partial match) */
+function getTeamColor(name) {
+  if (!name) return "#888888";
+  const key = name.toLowerCase().trim();
+  if (TEAM_COLORS[key]) return TEAM_COLORS[key];
+  // Partial match — find first entry whose key is contained in the name or vice versa
+  for (const [k, v] of Object.entries(TEAM_COLORS)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return "#888888"; // fallback neutral
+}
+
+/** Convert hex color to rgba string with given alpha (0–1) */
+function hexToRgba(hex, alpha) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // ─── KALSHI API ───────────────────────────────────────────────────────────────
 // Your API key is stored in CodeSandbox environment variables as REACT_APP_KALSHI_API_KEY
 const KALSHI_KEY = process.env.REACT_APP_KALSHI_API_KEY || "";
@@ -287,7 +407,26 @@ function extractESPNInfo(event) {
   const score = hasScores
     ? `${awayAbbr} ${awayScore} – ${homeScore} ${homeAbbr}`
     : "—";
-  const clock = event.status?.type?.shortDetail || "—";
+  // ESPN returns times in ET (e.g. "7:30 PM ET"). Convert to CT (-1h) and drop timezone label.
+  const rawClock = event.status?.type?.shortDetail || "—";
+  const etMatch = rawClock.match(/^(\d+):(\d+)\s*(AM|PM)\s*ET$/i);
+  let clock = rawClock;
+  if (etMatch) {
+    let h = parseInt(etMatch[1], 10);
+    const m = etMatch[2];
+    const ampm = etMatch[3].toUpperCase();
+    // Convert to 24h, subtract 1 for CT, convert back
+    if (ampm === "PM" && h !== 12) h += 12;
+    if (ampm === "AM" && h === 12) h = 0;
+    h -= 1; // ET → CT
+    if (h < 0) h += 24;
+    const newAmpm = h < 12 ? "AM" : "PM";
+    let h12 = h % 12; if (h12 === 0) h12 = 12;
+    clock = `${h12}:${m} ${newAmpm}`;
+  } else {
+    // Remove any trailing timezone abbreviation (ET, EST, CST, etc.) for other formats
+    clock = rawClock.replace(/\s+[A-Z]{2,4}$/, "");
+  }
   const odds  = comp.odds?.[0];
   const ouLine = odds?.overUnder != null ? String(odds.overUnder) : null;
   const currentTotal = hasScores
@@ -1026,27 +1165,33 @@ function GameWidget({
           </div>
         </div>
 
-        {/* Compact odds */}
-        <div style={{ display: "flex", gap: 8 }}>
-          {[
+        {/* Compact odds — favorite gets green %, underdog gets red % */}
+        {(() => {
+          const teamAIsFav = game.openKalshi >= 0.5;
+          const FAV_COLOR   = "#16a34a"; // green
+          const DOG_COLOR   = "#dc2626"; // red
+          const entries = [
             {
-              label: game.teamA,
-              prob: game.kalshi.yes,
-              d: kDiff,
-              color: T.teamA,
+              label:    game.teamA,
+              prob:     game.kalshi.yes,
+              d:        kDiff,
+              pctColor: teamAIsFav ? FAV_COLOR : DOG_COLOR,
+              teamHex:  getTeamColor(game.teamA),
             },
             {
-              label: game.teamB,
-              prob: game.kalshi.no,
-              d: -kDiff,
-              color: T.teamB,
+              label:    game.teamB,
+              prob:     game.kalshi.no,
+              d:        -kDiff,
+              pctColor: teamAIsFav ? DOG_COLOR : FAV_COLOR,
+              teamHex:  getTeamColor(game.teamB),
             },
-          ].map(({ label, prob, d, color }) => (
+          ];
+          return entries.map(({ label, prob, d, pctColor, teamHex }) => (
             <div
               key={label}
               style={{
-                background: T.calcCard,
-                border: `1px solid ${T.calcBorder}`,
+                background: hexToRgba(teamHex, 0.10),
+                border: `1px solid ${hexToRgba(teamHex, 0.28)}`,
                 borderRadius: 7,
                 padding: "7px 11px",
                 flex: 1,
@@ -1063,7 +1208,7 @@ function GameWidget({
                 {label}
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-                <span style={{ color, fontWeight: 800, fontSize: "1rem" }}>
+                <span style={{ color: pctColor, fontWeight: 800, fontSize: "1rem" }}>
                   {pct(prob)}
                 </span>
                 <span style={{ fontSize: "0.73rem", color: T.textMuted }}>
@@ -1080,7 +1225,8 @@ function GameWidget({
                 </span>
               </div>
             </div>
-          ))}
+          ));
+        })()}
           {game.alertTriggered && (
             <div
               style={{
@@ -1124,6 +1270,9 @@ function GameWidget({
               const n = game.history.length;
               // Re-index history so each dot's t matches its snapshot index
               const chartData = game.history.map((h, i) => ({ ...h, t: i }));
+              // Dots use each team's own brand color
+              const dotA = getTeamColor(game.teamA);
+              const dotB = getTeamColor(game.teamB);
 
               // Fixed full-game timeline: NFL/NCAAF ~3h (360 snaps), others ~2h (240 snaps)
               const isFootball = game.sport.includes("NFL") || game.sport.includes("NCAAF");
@@ -1168,11 +1317,11 @@ function GameWidget({
                         const isLast = index === n - 1;
                         if (isLast) return (
                           <g key={`da-${index}`}>
-                            <circle cx={cx} cy={cy} r={5} fill={T.teamA} />
-                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={T.teamA} strokeWidth={1.5} strokeOpacity={0.5} />
+                            <circle cx={cx} cy={cy} r={5} fill={dotA} />
+                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={dotA} strokeWidth={1.5} strokeOpacity={0.5} />
                           </g>
                         );
-                        return <circle key={`da-${index}`} cx={cx} cy={cy} r={2.5} fill={T.teamA} fillOpacity={0.75} />;
+                        return <circle key={`da-${index}`} cx={cx} cy={cy} r={2.5} fill={dotA} fillOpacity={0.75} />;
                       }}
                       activeDot={false}
                     />
@@ -1182,11 +1331,11 @@ function GameWidget({
                         const isLast = index === n - 1;
                         if (isLast) return (
                           <g key={`db-${index}`}>
-                            <circle cx={cx} cy={cy} r={5} fill={T.teamB} />
-                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={T.teamB} strokeWidth={1.5} strokeOpacity={0.5} />
+                            <circle cx={cx} cy={cy} r={5} fill={dotB} />
+                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={dotB} strokeWidth={1.5} strokeOpacity={0.5} />
                           </g>
                         );
-                        return <circle key={`db-${index}`} cx={cx} cy={cy} r={2.5} fill={T.teamB} fillOpacity={0.75} />;
+                        return <circle key={`db-${index}`} cx={cx} cy={cy} r={2.5} fill={dotB} fillOpacity={0.75} />;
                       }}
                       activeDot={false}
                     />
@@ -1219,12 +1368,12 @@ function GameWidget({
                 marginTop: 5,
               }}
             >
-              <span style={{ color: T.teamA, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={T.teamA} /></svg>
+              <span style={{ color: dotA, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotA} /></svg>
                 {game.teamA}
               </span>
-              <span style={{ color: T.teamB, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={T.teamB} /></svg>
+              <span style={{ color: dotB, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotB} /></svg>
                 {game.teamB}
               </span>
             </div>
