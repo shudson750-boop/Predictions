@@ -142,19 +142,25 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
 async function fetchMarketOdds(ticker) {
   try {
     const data = await kalshiRequest(`/markets/${ticker}`);
-    return data.market || null;
+    const market = data.market || null;
+    if (market) {
+      console.log(`[Kalshi] ${ticker} → yes_ask=${market.yes_ask} yes_bid=${market.yes_bid} last_price=${market.last_price}`);
+    } else {
+      console.warn(`[Kalshi] ${ticker} returned no market object`, data);
+    }
+    return market;
   } catch (err) {
-    console.error("Odds fetch error:", err);
+    console.error(`[Kalshi] fetchMarketOdds failed for ${ticker}:`, err.message);
     return null;
   }
 }
 
 // Extract the best YES probability from a Kalshi market object.
-// yes_ask/yes_bid are in cents (0–100); 0 means no order exists — treat as absent.
-// Priority: midpoint → ask → bid → last_price → 50 (neutral fallback)
+// yes_ask/yes_bid are in cents (0–100); 0 means no order — treat as absent.
+// Priority: midpoint of ask+bid → ask → bid → last_price → 50 fallback
 function extractYesProb(market) {
-  const ask  = market.yes_ask  > 0 ? market.yes_ask  : null;
-  const bid  = market.yes_bid  > 0 ? market.yes_bid  : null;
+  const ask  = market.yes_ask   > 0 ? market.yes_ask   : null;
+  const bid  = market.yes_bid   > 0 ? market.yes_bid   : null;
   const last = market.last_price > 0 ? market.last_price : null;
   let cents;
   if (ask !== null && bid !== null) cents = (ask + bid) / 2;
@@ -162,6 +168,7 @@ function extractYesProb(market) {
   else if (bid !== null)            cents = bid;
   else if (last !== null)           cents = last;
   else                              cents = 50;
+  console.log(`[extractYesProb] ask=${ask} bid=${bid} last=${last} → ${cents}¢ = ${(cents/100*100).toFixed(1)}%`);
   return +(cents / 100).toFixed(3);
 }
 

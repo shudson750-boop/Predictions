@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     const fullPath = `/trade-api/v2/${path}`;
     const signature = signRequest(privateKeyPem, timestamp, method, fullPath);
 
-    const url = `https://api.elections.kalshi.com${fullPath}`;
+    const url = `https://trading-api.kalshi.com${fullPath}`;
     const response = await fetch(url, {
       headers: {
         "KALSHI-ACCESS-KEY": keyId,
