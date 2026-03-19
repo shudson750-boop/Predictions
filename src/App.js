@@ -955,78 +955,73 @@ function GameWidget({
             {game.expanded ? "▲ less" : "▼ more"}
           </span>
         </div>
-        {/* Score + clock row */}
+        {/* Score + clock + O/U row — all on one line */}
         <div
           style={{
             display: "flex",
-            gap: 10,
-            alignItems: "center",
-            marginBottom: 5,
-          }}
-        >
-          <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
-            Score
-          </span>
-          <span style={{ fontWeight: 700, color: T.textPrimary }}>
-            {game.score !== "—" ? game.score : "—"}
-          </span>
-          <span
-            style={{
-              fontSize: "0.72rem",
-              background: T.badge,
-              color: T.btnPrimary,
-              padding: "1px 8px",
-              borderRadius: 4,
-              fontWeight: 600,
-            }}
-          >
-            {game.clock}
-          </span>
-        </div>
-
-        {/* O/U row — always visible */}
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
+            justifyContent: "space-between",
             alignItems: "center",
             marginBottom: 10,
-            fontSize: "0.72rem",
           }}
         >
-          <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
-            O/U
-          </span>
-          <span
-            style={{
-              background: T.badge,
-              border: `1px solid ${T.badgeBorder}`,
-              borderRadius: 4,
-              padding: "1px 7px",
-              color: game.ouLine ? T.textSecond : T.textFaint,
-              fontWeight: 600,
-            }}
-          >
-            {game.ouLine || "—"}
-          </span>
-          {game.ouLine && game.currentTotal > 0 && (
-            <span style={{ color: T.textMuted }}>
-              {game.currentTotal} pts ·{" "}
-              <span
-                style={{
-                  color:
-                    game.currentTotal > parseFloat(game.ouLine)
-                      ? T.alert
-                      : T.teamA,
-                  fontWeight: 600,
-                }}
-              >
-                {game.currentTotal > parseFloat(game.ouLine)
-                  ? "↑ Over"
-                  : "↓ Under"}
-              </span>
+          {/* Left: Score + clock */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
+              Score
             </span>
-          )}
+            <span style={{ fontWeight: 700, color: T.textPrimary }}>
+              {game.score !== "—" ? game.score : "—"}
+            </span>
+            <span
+              style={{
+                fontSize: "0.72rem",
+                background: T.badge,
+                color: T.btnPrimary,
+                padding: "1px 8px",
+                borderRadius: 4,
+                fontWeight: 600,
+              }}
+            >
+              {game.clock}
+            </span>
+          </div>
+
+          {/* Right: O/U */}
+          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "0.72rem" }}>
+            <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
+              O/U
+            </span>
+            <span
+              style={{
+                background: T.badge,
+                border: `1px solid ${T.badgeBorder}`,
+                borderRadius: 4,
+                padding: "1px 7px",
+                color: game.ouLine ? T.textSecond : T.textFaint,
+                fontWeight: 600,
+              }}
+            >
+              {game.ouLine || "—"}
+            </span>
+            {game.ouLine && game.currentTotal > 0 && (
+              <span style={{ color: T.textMuted }}>
+                {game.currentTotal} pts ·{" "}
+                <span
+                  style={{
+                    color:
+                      game.currentTotal > parseFloat(game.ouLine)
+                        ? T.alert
+                        : T.teamA,
+                    fontWeight: 600,
+                  }}
+                >
+                  {game.currentTotal > parseFloat(game.ouLine)
+                    ? "↑ Over"
+                    : "↓ Under"}
+                </span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Compact odds */}
@@ -1153,8 +1148,34 @@ function GameWidget({
                         label={{ value: "Halftime", position: "insideBottom", fontSize: 9, fill: T.textFaint }}
                       />
                     )}
-                    <Line type="monotone" dataKey="teamA" stroke={T.teamA} strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="teamB" stroke={T.teamB} strokeWidth={2} dot={false} />
+                    <Line type="linear" dataKey="teamA" stroke="none" strokeWidth={0} isAnimationActive={false}
+                      dot={(props) => {
+                        const { cx, cy, index } = props;
+                        const isLast = index === n - 1;
+                        if (isLast) return (
+                          <g key={`da-${index}`}>
+                            <circle cx={cx} cy={cy} r={5} fill={T.teamA} />
+                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={T.teamA} strokeWidth={1.5} strokeOpacity={0.5} />
+                          </g>
+                        );
+                        return <circle key={`da-${index}`} cx={cx} cy={cy} r={2.5} fill={T.teamA} fillOpacity={0.75} />;
+                      }}
+                      activeDot={false}
+                    />
+                    <Line type="linear" dataKey="teamB" stroke="none" strokeWidth={0} isAnimationActive={false}
+                      dot={(props) => {
+                        const { cx, cy, index } = props;
+                        const isLast = index === n - 1;
+                        if (isLast) return (
+                          <g key={`db-${index}`}>
+                            <circle cx={cx} cy={cy} r={5} fill={T.teamB} />
+                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={T.teamB} strokeWidth={1.5} strokeOpacity={0.5} />
+                          </g>
+                        );
+                        return <circle key={`db-${index}`} cx={cx} cy={cy} r={2.5} fill={T.teamB} fillOpacity={0.75} />;
+                      }}
+                      activeDot={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               );
@@ -1759,6 +1780,7 @@ export default function App() {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))",
     gap: 10,
+    alignItems: "start",
   };
 
   return (
