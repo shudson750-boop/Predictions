@@ -377,355 +377,151 @@ function makeGame(overrides = {}) {
 }
 
 // ─── KELLY CALCULATOR ─────────────────────────────────────────────────────────
-function KellyCalc({ defaultOdds, onDuplicate, onRemove, isOnly }) {
-  const [useKelly, setUseKelly] = useState(false);
-  const [bankroll, setBankroll] = useState("");
-  const [wager, setWager] = useState("");
-  const [myProb, setMyProb] = useState("");
-  const [odds, setOdds] = useState(defaultOdds || "");
+function KellyCalc({ teamA, teamB, teamAProb, teamBProb, openKalshiA, openKalshiB, onDuplicate, onRemove, isOnly }) {
+  const [isOpen, setIsOpen]         = useState(false);
+  const [selectedTeam, setSelected] = useState("teamA");
+  const [wager, setWager]           = useState("");
 
-  const a = parseFloat(odds);
-  const w = parseFloat(wager);
-  const p = parseFloat(myProb) / 100;
-  const br = parseFloat(bankroll);
-  const netOdds = !isNaN(a) ? (a > 0 ? a / 100 : 100 / Math.abs(a)) : 0;
-  const payout = calcPayout(odds, w || 0);
-  const beProb = breakEven(odds);
-  const edge = !isNaN(p) && beProb !== null ? p - beProb : null;
-  const fullKelly = !isNaN(p) && netOdds > 0 ? kellyFraction(p, netOdds) : null;
-  const halfKelly = fullKelly !== null ? fullKelly / 2 : null;
-  const fullKellyAmt =
-    fullKelly !== null && useKelly && !isNaN(br) && br > 0
-      ? fullKelly * br
-      : null;
-  const halfKellyAmt =
-    halfKelly !== null && useKelly && !isNaN(br) && br > 0
-      ? halfKelly * br
-      : null;
+  // Always Kelly, always $1000 bankroll
+  const BANKROLL = 1000;
 
-  let gaugeColor = T.inputBorder,
-    gaugeLabel = "—",
-    gaugeWidth = 0;
+  // Derived from selected team
+  const currentProb = selectedTeam === "teamA" ? teamAProb : teamBProb;
+  const openProb    = selectedTeam === "teamA" ? openKalshiA : openKalshiB;
+  const teamName    = selectedTeam === "teamA" ? teamA : teamB;
+
+  // Current market American odds string (for payout calculation)
+  const oddsStr  = toAmerican(currentProb);
+  const w        = parseFloat(wager);
+  const aNum     = parseFloat(oddsStr);
+  const netOdds  = !isNaN(aNum) ? (aNum > 0 ? aNum / 100 : 100 / Math.abs(aNum)) : 0;
+  const payout   = calcPayout(oddsStr, w || 0);
+  const beProb   = breakEven(oddsStr);
+
+  // Kelly uses beginning odds as estimated win probability
+  const edge         = openProb > 0 && beProb !== null ? openProb - beProb : null;
+  const fullKelly    = openProb > 0 && netOdds > 0 ? kellyFraction(openProb, netOdds) : null;
+  const halfKelly    = fullKelly !== null ? fullKelly / 2 : null;
+  const fullKellyAmt = fullKelly !== null ? fullKelly * BANKROLL : null;
+  const halfKellyAmt = halfKelly !== null ? halfKelly * BANKROLL : null;
+
+  let gaugeColor = T.inputBorder, gaugeLabel = "—", gaugeWidth = 0;
   if (fullKellyAmt !== null && !isNaN(w) && w > 0 && fullKellyAmt > 0) {
     const ratio = w / fullKellyAmt;
     gaugeWidth = Math.min(100, ratio * 50);
-    if (ratio < 0.5) {
-      gaugeColor = T.teamB;
-      gaugeLabel = "Under Kelly";
-    } else if (ratio <= 1.0) {
-      gaugeColor = T.teamA;
-      gaugeLabel = "Within Kelly ✓";
-    } else if (ratio <= 1.5) {
-      gaugeColor = "#c47f1a";
-      gaugeLabel = "Over Kelly ⚠";
-    } else {
-      gaugeColor = T.alert;
-      gaugeLabel = "Well Over Kelly ✕";
-    }
+    if (ratio < 0.5)       { gaugeColor = T.teamB;    gaugeLabel = "Under Kelly"; }
+    else if (ratio <= 1.0) { gaugeColor = T.teamA;    gaugeLabel = "Within Kelly ✓"; }
+    else if (ratio <= 1.5) { gaugeColor = "#c47f1a";  gaugeLabel = "Over Kelly ⚠"; }
+    else                   { gaugeColor = T.alert;    gaugeLabel = "Well Over Kelly ✕"; }
   }
 
+  const inputBase = {
+    background: T.input, border: `1px solid ${T.inputBorder}`, borderRadius: 6,
+    padding: "6px 8px", color: T.textPrimary, fontSize: "0.8rem",
+    width: "100%", boxSizing: "border-box",
+  };
+
   return (
-    <div
-      style={{
-        background: T.calcCard,
-        border: `1px solid ${T.calcBorder}`,
-        borderRadius: 9,
-        padding: 13,
-        marginBottom: 9,
-      }}
-    >
+    <div style={{ background: T.calcCard, border: `1px solid ${T.calcBorder}`, borderRadius: 9, marginBottom: 9 }}>
+
+      {/* ── Collapsible header ── */}
       <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 11,
-        }}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 13px", cursor: "pointer", userSelect: "none" }}
+        onClick={() => setIsOpen((o) => !o)}
       >
-        <span
-          style={{ fontSize: "0.75rem", fontWeight: 700, color: T.btnPrimary }}
-        >
-          ⚖ Kelly Calculator
+        <span style={{ fontSize: "0.75rem", fontWeight: 700, color: T.btnPrimary }}>
+          ⚖ Kelly Calculator{teamName ? ` · ${teamName}` : ""}
         </span>
-        <div style={{ display: "flex", gap: 5 }}>
+        <div style={{ display: "flex", gap: 5, alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
           <button
-            style={{
-              background: T.badge,
-              border: `1px solid ${T.badgeBorder}`,
-              borderRadius: 5,
-              cursor: "pointer",
-              fontSize: "0.73rem",
-              padding: "2px 9px",
-              color: T.textSecond,
-            }}
+            style={{ background: T.badge, border: `1px solid ${T.badgeBorder}`, borderRadius: 5, cursor: "pointer", fontSize: "0.73rem", padding: "2px 9px", color: T.textSecond }}
             onClick={onDuplicate}
           >
             ⧉ Duplicate
           </button>
           {!isOnly && (
-            <button
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                color: T.alert,
-              }}
-              onClick={onRemove}
-            >
+            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.8rem", color: T.alert }} onClick={onRemove}>
               ✕
             </button>
           )}
+          <span style={{ fontSize: "0.68rem", color: T.textMuted, marginLeft: 2, pointerEvents: "none" }}>
+            {isOpen ? "▲" : "▼"}
+          </span>
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 8,
-          marginBottom: 10,
-        }}
-      >
-        {[
-          {
-            label: "American Odds",
-            val: odds,
-            set: setOdds,
-            ph: "-110 or +150",
-            type: "text",
-          },
-          {
-            label: "Wager ($)",
-            val: wager,
-            set: setWager,
-            ph: "50.00",
-            type: "number",
-          },
-          {
-            label: "Your Win Est. (%)",
-            val: myProb,
-            set: setMyProb,
-            ph: "58",
-            type: "number",
-          },
-        ].map(({ label, val, set, ph, type }) => (
-          <div key={label}>
-            <div
-              style={{
-                fontSize: "0.63rem",
-                color: T.textMuted,
-                marginBottom: 3,
-              }}
-            >
-              {label}
-            </div>
-            <input
-              style={{
-                background: T.input,
-                border: `1px solid ${T.inputBorder}`,
-                borderRadius: 6,
-                padding: "6px 8px",
-                color: T.textPrimary,
-                fontSize: "0.8rem",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-              type={type}
-              value={val}
-              onChange={(e) => set(e.target.value)}
-              placeholder={ph}
-            />
-          </div>
-        ))}
-      </div>
+      {/* ── Expanded body ── */}
+      {isOpen && (
+        <div style={{ padding: "0 13px 13px" }}>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "8px 0",
-          borderTop: `1px solid ${T.divider}`,
-          borderBottom: `1px solid ${T.divider}`,
-          marginBottom: 10,
-        }}
-      >
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            cursor: "pointer",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={useKelly}
-            onChange={(e) => setUseKelly(e.target.checked)}
-            style={{ accentColor: T.btnPrimary, width: 14, height: 14 }}
-          />
-          <span style={{ fontSize: "0.74rem", color: T.textSecond }}>
-            Use Kelly sizing for this wager
-          </span>
-        </label>
-        {useKelly && (
-          <input
-            style={{
-              background: T.input,
-              border: `1px solid ${T.inputBorder}`,
-              borderRadius: 6,
-              padding: "6px 8px",
-              color: T.textPrimary,
-              fontSize: "0.8rem",
-              width: 140,
-              marginLeft: "auto",
-              boxSizing: "border-box",
-            }}
-            type="number"
-            value={bankroll}
-            onChange={(e) => setBankroll(e.target.value)}
-            placeholder="Bankroll ($)"
-          />
-        )}
-      </div>
+          {/* 3-col inputs: Team | Beginning Odds | Wager */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3,1fr)",
-          gap: 7,
-        }}
-      >
-        {[
-          {
-            label: "Profit on Win",
-            val: !isNaN(w) && w > 0 ? `+$${payout.toFixed(2)}` : "—",
-            color: payout > 0 && !isNaN(w) && w > 0 ? T.teamA : T.textFaint,
-          },
-          {
-            label: "Break-even %",
-            val: beProb !== null ? pct(beProb) : "—",
-            color: T.textPrimary,
-          },
-          {
-            label: "Your Edge",
-            val:
-              edge !== null
-                ? `${edge > 0 ? "+" : ""}${(edge * 100).toFixed(1)}pp`
-                : "—",
-            color: edge === null ? T.textFaint : edge > 0 ? T.teamA : T.alert,
-          },
-          {
-            label: "Full Kelly",
-            val: fullKelly !== null ? pct(fullKelly) : "—",
-            sub: fullKellyAmt !== null ? `$${fullKellyAmt.toFixed(0)}` : null,
-            color: T.btnPrimary,
-          },
-          {
-            label: "Half Kelly",
-            val: halfKelly !== null ? pct(halfKelly) : "—",
-            sub: halfKellyAmt !== null ? `$${halfKellyAmt.toFixed(0)}` : null,
-            color: T.textSecond,
-          },
-          {
-            label: "Total Return",
-            val:
-              !isNaN(w) && w > 0 && payout > 0
-                ? `$${(w + payout).toFixed(2)}`
-                : "—",
-            color: T.textPrimary,
-          },
-        ].map(({ label, val, sub, color }) => (
-          <div
-            key={label}
-            style={{
-              background: T.widget,
-              border: `1px solid ${T.widgetBorder}`,
-              borderRadius: 6,
-              padding: "6px 9px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "0.62rem",
-                color: T.textMuted,
-                marginBottom: 2,
-              }}
-            >
-              {label}
+            {/* Team dropdown */}
+            <div>
+              <div style={{ fontSize: "0.63rem", color: T.textMuted, marginBottom: 3 }}>Team</div>
+              <select
+                style={inputBase}
+                value={selectedTeam}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                <option value="teamA">{teamA} ({pct(teamAProb)})</option>
+                <option value="teamB">{teamB} ({pct(teamBProb)})</option>
+              </select>
             </div>
-            <div style={{ fontSize: "0.85rem", fontWeight: 700, color }}>
-              {val}
-              {sub && (
-                <span
-                  style={{
-                    color: T.btnPrimary,
-                    fontSize: "0.72rem",
-                    marginLeft: 4,
-                  }}
-                >
-                  ({sub})
-                </span>
-              )}
+
+            {/* Beginning Odds (read-only) */}
+            <div>
+              <div style={{ fontSize: "0.63rem", color: T.textMuted, marginBottom: 3 }}>Beginning Odds</div>
+              <div
+                style={{ background: T.badge, border: `1px solid ${T.badgeBorder}`, borderRadius: 6, padding: "6px 8px", fontSize: "0.8rem", fontWeight: 700, color: T.textPrimary }}
+              >
+                {pct(openProb)}
+              </div>
+            </div>
+
+            {/* Wager */}
+            <div>
+              <div style={{ fontSize: "0.63rem", color: T.textMuted, marginBottom: 3 }}>Wager ($)</div>
+              <input style={inputBase} type="number" value={wager} onChange={(e) => setWager(e.target.value)} placeholder="50.00" />
             </div>
           </div>
-        ))}
-      </div>
 
-      {fullKellyAmt !== null && !isNaN(w) && w > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: 5,
-            }}
-          >
-            <span style={{ fontSize: "0.68rem", color: T.textMuted }}>
-              Bet size vs Kelly recommendation
-            </span>
-            <span
-              style={{
-                fontSize: "0.68rem",
-                color: gaugeColor,
-                fontWeight: 700,
-              }}
-            >
-              {gaugeLabel}
-            </span>
+          {/* Stats grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 7 }}>
+            {[
+              { label: "Profit on Win",  val: !isNaN(w) && w > 0 ? `+$${payout.toFixed(2)}` : "—",                                   color: payout > 0 && !isNaN(w) && w > 0 ? T.teamA : T.textFaint },
+              { label: "Break-even %",   val: beProb !== null ? pct(beProb) : "—",                                                    color: T.textPrimary },
+              { label: "Your Edge",      val: edge !== null ? `${edge > 0 ? "+" : ""}${(edge * 100).toFixed(1)}pp` : "—",             color: edge === null ? T.textFaint : edge > 0 ? T.teamA : T.alert },
+              { label: "Full Kelly",     val: fullKelly !== null ? pct(fullKelly) : "—",     sub: fullKellyAmt !== null ? `$${fullKellyAmt.toFixed(0)}` : null, color: T.btnPrimary },
+              { label: "Half Kelly",     val: halfKelly !== null ? pct(halfKelly) : "—",     sub: halfKellyAmt !== null ? `$${halfKellyAmt.toFixed(0)}` : null, color: T.textSecond },
+              { label: "Total Return",   val: !isNaN(w) && w > 0 && payout > 0 ? `$${(w + payout).toFixed(2)}` : "—",               color: T.textPrimary },
+            ].map(({ label, val, sub, color }) => (
+              <div key={label} style={{ background: T.widget, border: `1px solid ${T.widgetBorder}`, borderRadius: 6, padding: "6px 9px" }}>
+                <div style={{ fontSize: "0.62rem", color: T.textMuted, marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: "0.85rem", fontWeight: 700, color }}>
+                  {val}
+                  {sub && <span style={{ color: T.btnPrimary, fontSize: "0.72rem", marginLeft: 4 }}>({sub})</span>}
+                </div>
+              </div>
+            ))}
           </div>
-          <div
-            style={{
-              background: T.widgetBorder,
-              borderRadius: 4,
-              height: 8,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${gaugeWidth}%`,
-                background: gaugeColor,
-                height: "100%",
-                borderRadius: 4,
-                transition: "width 0.4s, background 0.4s",
-              }}
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 3,
-              fontSize: "0.63rem",
-              color: T.textFaint,
-            }}
-          >
-            <span>0%</span>
-            <span>½ Kelly</span>
-            <span>Full Kelly</span>
-          </div>
+
+          {/* Kelly gauge */}
+          {fullKellyAmt !== null && !isNaN(w) && w > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                <span style={{ fontSize: "0.68rem", color: T.textMuted }}>Bet size vs Kelly recommendation</span>
+                <span style={{ fontSize: "0.68rem", color: gaugeColor, fontWeight: 700 }}>{gaugeLabel}</span>
+              </div>
+              <div style={{ background: T.widgetBorder, borderRadius: 4, height: 8, overflow: "hidden" }}>
+                <div style={{ width: `${gaugeWidth}%`, background: gaugeColor, height: "100%", borderRadius: 4, transition: "width 0.4s, background 0.4s" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontSize: "0.63rem", color: T.textFaint }}>
+                <span>0%</span><span>½ Kelly</span><span>Full Kelly</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1037,7 +833,7 @@ function GameWidget({
             : T.widgetBorder
         }`,
         borderRadius: 12,
-        padding: "14px 16px",
+        padding: "10px 14px",
         boxShadow: "0 2px 8px #0000001a",
         transition: "border-color .2s",
       }}
@@ -1271,10 +1067,10 @@ function GameWidget({
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
                 <span style={{ color, fontWeight: 800, fontSize: "1rem" }}>
-                  {toAmerican(prob)}
+                  {pct(prob)}
                 </span>
                 <span style={{ fontSize: "0.73rem", color: T.textMuted }}>
-                  {pct(prob)}
+                  {toAmerican(prob)}
                 </span>
                 <span
                   style={{
@@ -1304,61 +1100,6 @@ function GameWidget({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Play-by-play */}
-      <div style={{ marginTop: 10 }}>
-        <button
-          onClick={() => onToggleFeed(game.id)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "0.7rem",
-            color: T.textSecond,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "4px 0",
-          }}
-        >
-          {game.feedExpanded ? "▼" : "▶"} {game.feedExpanded ? "Hide" : "Show"}{" "}
-          Play-by-Play
-        </button>
-        {game.feedExpanded && (
-          <div
-            style={{
-              background: T.calcCard,
-              border: `1px solid ${T.calcBorder}`,
-              borderRadius: 8,
-              padding: "10px 12px",
-              marginTop: 6,
-              maxHeight: 160,
-              overflowY: "auto",
-            }}
-          >
-            {[...game.plays].reverse().map((play, i) => (
-              <div
-                key={i}
-                style={{
-                  fontSize: "0.74rem",
-                  color: T.textSecond,
-                  padding: "4px 0",
-                  borderBottom:
-                    i < game.plays.length - 1
-                      ? `1px solid ${T.divider}`
-                      : "none",
-                  display: "flex",
-                  gap: 8,
-                }}
-              >
-                <span style={{ color: T.textFaint, flexShrink: 0 }}>•</span>
-                <span>{play}</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Expanded detail */}
@@ -1452,78 +1193,77 @@ function GameWidget({
             </div>
           </div>
 
-          {/* Odds detail */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            {[
-              {
-                label: `${game.teamA} WIN`,
-                prob: game.kalshi.yes,
-                d: kDiff,
-                color: T.teamA,
-              },
-              {
-                label: `${game.teamB} WIN`,
-                prob: game.kalshi.no,
-                d: -kDiff,
-                color: T.teamB,
-              },
-            ].map(({ label, prob, d, color }) => (
-              <div
-                key={label}
-                style={{
-                  background: T.calcCard,
-                  border: `1px solid ${T.calcBorder}`,
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  flex: 1,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "0.65rem",
-                    color: T.textMuted,
-                    marginBottom: 4,
-                    fontWeight: 600,
-                  }}
-                >
-                  {label}
-                </div>
-                <div style={{ fontWeight: 800, fontSize: "1.1rem", color }}>
-                  {toAmerican(prob)}
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    color: T.textSecond,
-                    marginTop: 1,
-                  }}
-                >
-                  {pct(prob)} implied
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.72rem",
-                    color: arrowColor(d),
-                    marginTop: 3,
-                  }}
-                >
-                  {arrow(d)} {Math.abs(d * 100).toFixed(1)}pp session
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Kelly calculators */}
           <div style={{ borderTop: `1px solid ${T.divider}`, paddingTop: 12 }}>
             {calcs.map((c) => (
               <KellyCalc
                 key={c.id}
-                defaultOdds={toAmerican(game.kalshi.yes)}
+                teamA={game.teamA}
+                teamB={game.teamB}
+                teamAProb={game.kalshi.yes}
+                teamBProb={game.kalshi.no}
+                openKalshiA={game.openKalshi}
+                openKalshiB={+(1 - game.openKalshi).toFixed(3)}
                 onDuplicate={() => dupCalc(c.id)}
                 onRemove={() => rmCalc(c.id)}
                 isOnly={calcs.length === 1}
               />
             ))}
+          </div>
+
+          {/* Play-by-play */}
+          <div style={{ marginTop: 14, borderTop: `1px solid ${T.divider}`, paddingTop: 12 }}>
+            <button
+              onClick={() => onToggleFeed(game.id)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "0.7rem",
+                color: T.textSecond,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 0",
+              }}
+            >
+              {game.feedExpanded ? "▼" : "▶"} {game.feedExpanded ? "Hide" : "Show"}{" "}
+              Play-by-Play
+            </button>
+            {game.feedExpanded && (
+              <div
+                style={{
+                  background: T.calcCard,
+                  border: `1px solid ${T.calcBorder}`,
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  marginTop: 6,
+                  maxHeight: 160,
+                  overflowY: "auto",
+                }}
+              >
+                {[...game.plays].reverse().map((play, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      fontSize: "0.74rem",
+                      color: T.textSecond,
+                      padding: "4px 0",
+                      borderBottom:
+                        i < game.plays.length - 1
+                          ? `1px solid ${T.divider}`
+                          : "none",
+                      display: "flex",
+                      gap: 8,
+                    }}
+                  >
+                    <span style={{ color: T.textFaint, flexShrink: 0 }}>•</span>
+                    <span>{play}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2017,8 +1757,8 @@ export default function App() {
 
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
-    gap: 12,
+    gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))",
+    gap: 10,
   };
 
   return (
@@ -2135,7 +1875,7 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "22px 10px" }}>
+      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "10px 10px" }}>
         {!KALSHI_KEY && (
           <div
             style={{
@@ -2165,40 +1905,14 @@ export default function App() {
 
         {tab === "dashboard" && (
           <div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 18,
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    fontSize: "1.05rem",
-                    fontWeight: 700,
-                    color: T.textPrimary,
-                  }}
-                >
-                  My Dashboard
-                </h2>
-                <p
-                  style={{
-                    fontSize: "0.72rem",
-                    color: T.textMuted,
-                    marginTop: 2,
-                  }}
-                >
-                  {active.length} tracked · {pinned.length} pinned
-                </p>
-              </div>
+            {/* Minimal top bar — just the add button */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
               <button
                 style={{
                   background: T.btnPrimary,
                   border: "none",
                   color: T.btnPrimaryTxt,
-                  padding: "7px 15px",
+                  padding: "6px 14px",
                   borderRadius: 6,
                   cursor: "pointer",
                   fontSize: "0.8rem",
@@ -2211,31 +1925,14 @@ export default function App() {
             </div>
 
             {active.length === 0 && (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "60px 0",
-                  color: T.textMuted,
-                }}
-              >
+              <div style={{ textAlign: "center", padding: "60px 0", color: T.textMuted }}>
                 <div style={{ fontSize: "2.5rem", marginBottom: 10 }}>📊</div>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  No markets tracked
-                </div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>No markets tracked</div>
                 <div style={{ fontSize: "0.78rem", marginBottom: 16 }}>
                   Search Kalshi markets to add them to your dashboard
                 </div>
                 <button
-                  style={{
-                    background: T.btnPrimary,
-                    border: "none",
-                    color: T.btnPrimaryTxt,
-                    padding: "8px 18px",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    fontSize: "0.82rem",
-                    fontWeight: 600,
-                  }}
+                  style={{ background: T.btnPrimary, border: "none", color: T.btnPrimaryTxt, padding: "8px 18px", borderRadius: 6, cursor: "pointer", fontSize: "0.82rem", fontWeight: 600 }}
                   onClick={() => setTab("search")}
                 >
                   Search Markets
@@ -2243,67 +1940,21 @@ export default function App() {
               </div>
             )}
 
-            {pinned.length > 0 && (
-              <div style={{ marginBottom: 18 }}>
-                <div
-                  style={{
-                    fontSize: "0.68rem",
-                    fontWeight: 700,
-                    color: T.sectionTxt,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    marginBottom: 9,
-                  }}
-                >
-                  📌 Pinned
-                </div>
-                <div style={gridStyle}>
-                  {pinned.map((g) => (
-                    <GameWidget
-                      key={g.id}
-                      game={g}
-                      onToggleExpand={toggleExpand}
-                      onTogglePin={togglePin}
-                      onRemove={removeGame}
-                      onComplete={completeGame}
-                      onSetAlert={setAlertTarget}
-                      onToggleFeed={toggleFeed}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {unpinned.length > 0 && (
-              <div style={{ marginBottom: 18 }}>
-                {pinned.length > 0 && (
-                  <div
-                    style={{
-                      fontSize: "0.68rem",
-                      fontWeight: 700,
-                      color: T.sectionTxt,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 9,
-                    }}
-                  >
-                    ● Watching
-                  </div>
-                )}
-                <div style={gridStyle}>
-                  {unpinned.map((g) => (
-                    <GameWidget
-                      key={g.id}
-                      game={g}
-                      onToggleExpand={toggleExpand}
-                      onTogglePin={togglePin}
-                      onRemove={removeGame}
-                      onComplete={completeGame}
-                      onSetAlert={setAlertTarget}
-                      onToggleFeed={toggleFeed}
-                    />
-                  ))}
-                </div>
+            {/* Single unified grid — pinned first, then unpinned */}
+            {active.length > 0 && (
+              <div style={gridStyle}>
+                {[...pinned, ...unpinned].map((g) => (
+                  <GameWidget
+                    key={g.id}
+                    game={g}
+                    onToggleExpand={toggleExpand}
+                    onTogglePin={togglePin}
+                    onRemove={removeGame}
+                    onComplete={completeGame}
+                    onSetAlert={setAlertTarget}
+                    onToggleFeed={toggleFeed}
+                  />
+                ))}
               </div>
             )}
 
