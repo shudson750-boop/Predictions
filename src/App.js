@@ -293,6 +293,13 @@ function extractYesProb(market) {
 function kalshiMarketToGame(market) {
   const yesPrice = extractYesProb(market);
   const noPrice = +(1 - yesPrice).toFixed(3);
+  const ticker = market.ticker;
+  // Restore persisted opening odds (set once at game start, survives page reloads)
+  const storedOpen  = localStorage.getItem(`lm_open_${ticker}`);
+  const openKalshi  = storedOpen ? parseFloat(storedOpen) : yesPrice;
+  const openLocked  = !!storedOpen;
+  // Restore persisted team-swap preference
+  const swapped = localStorage.getItem(`lm_swap_${ticker}`) === "true";
 
   // Kalshi titles come in forms like:
   //   "Miami (OH) at SMU Winner"
@@ -338,7 +345,9 @@ function kalshiMarketToGame(market) {
     completed: false,
     alert: null,
     alertTriggered: false,
-    openKalshi: yesPrice,
+    openKalshi,
+    openKalshiLocked: openLocked,
+    swapped,
     kalshi: { yes: yesPrice, no: noPrice },
     history: [{ t: 0, teamA: yesPrice, teamB: noPrice }],
     plays: ["Live play-by-play will appear here as the game progresses"],
@@ -983,8 +992,17 @@ function GameWidget({
   onComplete,
   onSetAlert,
   onToggleFeed,
+  onSwap,
 }) {
-  const kDiff = game.kalshi.yes - game.openKalshi;
+  // Apply swap flag: YES side always stays tied to kalshi.yes/teamA internally;
+  // swapped=true just flips the display so the user can correct mis-labeled markets.
+  const aName  = game.swapped ? game.teamB      : game.teamA;
+  const bName  = game.swapped ? game.teamA      : game.teamB;
+  const aProb  = game.swapped ? game.kalshi.no  : game.kalshi.yes;
+  const bProb  = game.swapped ? game.kalshi.yes : game.kalshi.no;
+  const aOpen  = game.swapped ? +(1 - game.openKalshi).toFixed(3) : game.openKalshi;
+  const bOpen  = game.swapped ? game.openKalshi : +(1 - game.openKalshi).toFixed(3);
+  const kDiff  = aProb - aOpen;
   const arrow = (d) => (d > 0.005 ? "↑" : d < -0.005 ? "↓" : "→");
   const arrowColor = (d) =>
     d > 0.005 ? T.teamA : d < -0.005 ? T.alert : T.textFaint;
@@ -1072,6 +1090,11 @@ function GameWidget({
         </div>
         <div style={{ display: "flex", gap: 3 }}>
           {[
+            {
+              icon: "⇄",
+              title: "Swap teams (fix mis-labeled odds)",
+              action: () => onSwap(game.id),
+            },
             {
               icon: "🔕",
               title: "Set alert",
@@ -1210,18 +1233,8 @@ function GameWidget({
         {/* Compact odds — left: team name + opening %; right: live % in team color + odds */}
         <div style={{ display: "flex", gap: 8 }}>
           {[
-            {
-              label:    game.teamA,
-              prob:     game.kalshi.yes,
-              openProb: game.openKalshi,
-              teamHex:  getTeamColor(game.teamA),
-            },
-            {
-              label:    game.teamB,
-              prob:     game.kalshi.no,
-              openProb: +(1 - game.openKalshi).toFixed(3),
-              teamHex:  getTeamColor(game.teamB),
-            },
+            { label: aName, prob: aProb, openProb: aOpen, teamHex: getTeamColor(aName) },
+            { label: bName, prob: bProb, openProb: bOpen, teamHex: getTeamColor(bName) },
           ].map(({ label, prob, openProb, teamHex }) => (
             <div
               key={label}
@@ -1296,8 +1309,8 @@ function GameWidget({
               Win Probability (Kalshi)
             </div>
             {(() => {
-              const dotA = getTeamColor(game.teamA);
-              const dotB = getTeamColor(game.teamB);
+              const dotA = getTeamColor(aName);
+              const dotB = getTeamColor(bName);
               const n    = game.history.length;
               // Full regulation duration in seconds (x-axis spans this entire range)
               const totalSecs = totalGameSecondsForSport(game.sport);
@@ -1313,7 +1326,7 @@ function GameWidget({
                       <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
                       <YAxis domain={[0, 1]} hide />
                       <Tooltip
-                        formatter={(v, name) => [pct(v), name === "teamA" ? game.teamA : game.teamB]}
+                        formatter={(v, name) => [pct(v), name === "teamA" ? aName : bName]}
                         labelFormatter={() => ""}
                         contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
                       />
@@ -1366,11 +1379,11 @@ function GameWidget({
                   <div style={{ display: "flex", gap: 16, fontSize: "0.68rem", justifyContent: "center", marginTop: 5 }}>
                     <span style={{ color: dotA, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                       <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotA} /></svg>
-                      {game.teamA}
+                      {aName}
                     </span>
                     <span style={{ color: dotB, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                       <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotB} /></svg>
-                      {game.teamB}
+                      {bName}
                     </span>
                   </div>
                 </>
@@ -1383,12 +1396,12 @@ function GameWidget({
             {calcs.map((c) => (
               <KellyCalc
                 key={c.id}
-                teamA={game.teamA}
-                teamB={game.teamB}
-                teamAProb={game.kalshi.yes}
-                teamBProb={game.kalshi.no}
-                openKalshiA={game.openKalshi}
-                openKalshiB={+(1 - game.openKalshi).toFixed(3)}
+                teamA={aName}
+                teamB={bName}
+                teamAProb={aProb}
+                teamBProb={bProb}
+                openKalshiA={aOpen}
+                openKalshiB={bOpen}
                 onDuplicate={() => dupCalc(c.id)}
                 onRemove={() => rmCalc(c.id)}
                 isOnly={calcs.length === 1}
@@ -1820,8 +1833,19 @@ export default function App() {
           // Only snapshot while game is actively in progress.
           // gameSeconds > 0 means ESPN has confirmed the clock is running.
           if (g.completed || !g.gameSeconds || g.gameSeconds <= 0) return g;
+          // First time the game goes live: lock in the opening probability so
+          // "Open %" never changes and persists across page reloads.
+          let openKalshi = g.openKalshi;
+          let openKalshiLocked = g.openKalshiLocked;
+          if (!openKalshiLocked) {
+            openKalshi = g.kalshi.yes;
+            openKalshiLocked = true;
+            localStorage.setItem(`lm_open_${g.id}`, String(openKalshi));
+          }
           return {
             ...g,
+            openKalshi,
+            openKalshiLocked,
             history: [
               ...g.history,
               // t = actual elapsed game seconds so dots land at the right spot on the fixed timeline
@@ -1847,6 +1871,15 @@ export default function App() {
       p.map((g) => (g.id === id ? { ...g, feedExpanded: !g.feedExpanded } : g))
     );
   const removeGame = (id) => setGames((p) => p.filter((g) => g.id !== id));
+  const swapGame = (id) =>
+    setGames((p) =>
+      p.map((g) => {
+        if (g.id !== id) return g;
+        const ns = !g.swapped;
+        localStorage.setItem(`lm_swap_${g.id}`, String(ns));
+        return { ...g, swapped: ns };
+      })
+    );
   const completeGame = (id) =>
     setGames((p) =>
       p.map((g) =>
@@ -2080,6 +2113,7 @@ export default function App() {
                     onComplete={completeGame}
                     onSetAlert={setAlertTarget}
                     onToggleFeed={toggleFeed}
+                    onSwap={swapGame}
                   />
                 ))}
               </div>
