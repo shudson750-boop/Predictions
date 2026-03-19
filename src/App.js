@@ -1166,67 +1166,55 @@ function GameWidget({
         </div>
 
         {/* Compact odds — favorite gets green %, underdog gets red % */}
-        {(() => {
-          const teamAIsFav = game.openKalshi >= 0.5;
-          const FAV_COLOR   = "#16a34a"; // green
-          const DOG_COLOR   = "#dc2626"; // red
-          const entries = [
-            {
-              label:    game.teamA,
-              prob:     game.kalshi.yes,
-              d:        kDiff,
-              pctColor: teamAIsFav ? FAV_COLOR : DOG_COLOR,
-              teamHex:  getTeamColor(game.teamA),
-            },
-            {
-              label:    game.teamB,
-              prob:     game.kalshi.no,
-              d:        -kDiff,
-              pctColor: teamAIsFav ? DOG_COLOR : FAV_COLOR,
-              teamHex:  getTeamColor(game.teamB),
-            },
-          ];
-          return entries.map(({ label, prob, d, pctColor, teamHex }) => (
-            <div
-              key={label}
-              style={{
-                background: hexToRgba(teamHex, 0.10),
-                border: `1px solid ${hexToRgba(teamHex, 0.28)}`,
-                borderRadius: 7,
-                padding: "7px 11px",
-                flex: 1,
-              }}
-            >
+        <div style={{ display: "flex", gap: 8 }}>
+          {(() => {
+            const teamAIsFav = game.openKalshi >= 0.5;
+            const FAV_COLOR   = "#16a34a"; // green
+            const DOG_COLOR   = "#dc2626"; // red
+            const entries = [
+              {
+                label:    game.teamA,
+                prob:     game.kalshi.yes,
+                d:        kDiff,
+                pctColor: teamAIsFav ? FAV_COLOR : DOG_COLOR,
+                teamHex:  getTeamColor(game.teamA),
+              },
+              {
+                label:    game.teamB,
+                prob:     game.kalshi.no,
+                d:        -kDiff,
+                pctColor: teamAIsFav ? DOG_COLOR : FAV_COLOR,
+                teamHex:  getTeamColor(game.teamB),
+              },
+            ];
+            return entries.map(({ label, prob, d, pctColor, teamHex }) => (
               <div
+                key={label}
                 style={{
-                  fontSize: "0.65rem",
-                  color: T.textMuted,
-                  marginBottom: 3,
-                  fontWeight: 600,
+                  background: hexToRgba(teamHex, 0.10),
+                  border: `1px solid ${hexToRgba(teamHex, 0.28)}`,
+                  borderRadius: 7,
+                  padding: "7px 11px",
+                  flex: 1,
                 }}
               >
-                {label}
+                <div style={{ fontSize: "0.65rem", color: T.textMuted, marginBottom: 3, fontWeight: 600 }}>
+                  {label}
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+                  <span style={{ color: pctColor, fontWeight: 800, fontSize: "1rem" }}>
+                    {pct(prob)}
+                  </span>
+                  <span style={{ fontSize: "0.73rem", color: T.textMuted }}>
+                    {toAmerican(prob)}
+                  </span>
+                  <span style={{ color: arrowColor(d), fontWeight: 700, fontSize: "0.78rem" }}>
+                    {arrow(d)}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-                <span style={{ color: pctColor, fontWeight: 800, fontSize: "1rem" }}>
-                  {pct(prob)}
-                </span>
-                <span style={{ fontSize: "0.73rem", color: T.textMuted }}>
-                  {toAmerican(prob)}
-                </span>
-                <span
-                  style={{
-                    color: arrowColor(d),
-                    fontWeight: 700,
-                    fontSize: "0.78rem",
-                  }}
-                >
-                  {arrow(d)}
-                </span>
-              </div>
-            </div>
-          ));
-        })()}
+            ));
+          })()}
           {game.alertTriggered && (
             <div
               style={{
