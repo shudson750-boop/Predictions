@@ -50,7 +50,7 @@ const KALSHI_KEY = process.env.REACT_APP_KALSHI_API_KEY || "";
 const KALSHI_BASE = "https://trading-api.kalshi.com/trade-api/v2";
 
 // Sports series prefixes we care about
-const SPORTS_SERIES = ["KXNBAGAME", "KXNFLGAME", "KXMLBGAME", "KXNHLGAME", "KXNCAAMBGAME", "KXNCAAFBGAME"];
+const SPORTS_SERIES = ["KXNBAGAME", "KXNFLGAME", "KXNHLGAME", "KXNCAAMBGAME", "KXNCAAFBGAME"];
 
 async function kalshiRequest(path) {
   // Route through our Vercel proxy instead of calling Kalshi directly
@@ -61,20 +61,56 @@ async function kalshiRequest(path) {
   return res.json();
 }
 
-// Search for live sports markets matching a query
-async function searchKalshiMarkets(query) {
+// Search for sports markets matching a query
+// liveOnly: only return games currently in progress (close time within ±4h)
+// default: return all of today's games
+async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
   try {
     const results = [];
+    const now = new Date();
+
     for (const series of SPORTS_SERIES) {
-      const data = await kalshiRequest(
-        `markets?status=open&limit=20&series_ticker=${encodeURIComponent(series)}`
-      );
-      if (data && data.markets) {
-        const filtered = data.markets.filter(m =>
-          m.title && m.title.toLowerCase().includes(query.toLowerCase())
-        );
-        results.push(...filtered);
-      }
+      let cursor = null;
+      do {
+        let apiPath = `markets?status=open&limit=100&series_ticker=${encodeURIComponent(series)}`;
+        if (cursor) apiPath += `&cursor=${encodeURIComponent(cursor)}`;
+
+        const data = await kalshiRequest(apiPath);
+        if (data && data.markets) {
+          let markets = data.markets;
+
+          // Filter by search query if provided
+          if (query) {
+            markets = markets.filter(
+              (m) => m.title && m.title.toLowerCase().includes(query.toLowerCase())
+            );
+          }
+
+          // Filter by expected_expiration_time (actual game schedule)
+          // Note: close_time is a far-future safety buffer on Kalshi — don't use it
+          markets = markets.filter((m) => {
+            const expTime = m.expected_expiration_time
+              ? new Date(m.expected_expiration_time)
+              : null;
+            if (!expTime) return true;
+            if (liveOnly) {
+              // Live Now: all games expected to end today (or already ended in last 4h)
+              const todayEnd = new Date(now);
+              todayEnd.setHours(23, 59, 59, 999);
+              return (
+                expTime >= new Date(now.getTime() - 4 * 3600 * 1000) &&
+                expTime <= todayEnd
+              );
+            } else {
+              // Show games expected within the next 7 days
+              return expTime <= new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+            }
+          });
+
+          results.push(...markets);
+        }
+        cursor = data?.cursor || null;
+      } while (cursor);
     }
 
     // Deduplicate — group by event_ticker, keep only one market per game
@@ -87,6 +123,13 @@ async function searchKalshiMarkets(query) {
         deduped.push(m);
       }
     }
+    // Sort by expected game time (soonest first)
+    deduped.sort((a, b) => {
+      const ta = a.expected_expiration_time ? new Date(a.expected_expiration_time) : Infinity;
+      const tb = b.expected_expiration_time ? new Date(b.expected_expiration_time) : Infinity;
+      return ta - tb;
+    });
+
     return deduped;
 
   } catch (err) {
@@ -136,17 +179,80 @@ function kalshiMarketToGame(market) {
     history: [{ t: 0, teamA: yesPrice, teamB: noPrice }],
     plays: ["Live play-by-play will appear here as the game progresses"],
     isLive: true,
+    ouLine: null,
+    currentTotal: 0,
   };
 }
 
 function detectSport(ticker = "") {
   if (ticker.startsWith("KXNBA"))    return "🏀 NBA";
   if (ticker.startsWith("KXNFL"))    return "🏈 NFL";
-  if (ticker.startsWith("KXMLB"))    return "⚾ MLB";
   if (ticker.startsWith("KXNHL"))    return "🏒 NHL";
   if (ticker.startsWith("KXNCAAMB")) return "🏀 NCAAB";
   if (ticker.startsWith("KXNCAAFB")) return "🏈 NCAAF";
   return "🏆 Sports";
+}
+
+// ─── ESPN LIVE DATA ───────────────────────────────────────────────────────────
+const ESPN_URLS = {
+  "🏀 NBA":   "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+  "🏈 NFL":   "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
+  "🏒 NHL":   "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard",
+  "🏀 NCAAB": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard",
+  "🏈 NCAAF": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard",
+};
+
+async function fetchESPNEvents(sport) {
+  const url = ESPN_URLS[sport];
+  if (!url) return [];
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.events || [];
+  } catch {
+    return [];
+  }
+}
+
+function matchESPNEvent(events, teamA, teamB) {
+  const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const ta = norm(teamA);
+  const tb = norm(teamB);
+  return events.find((ev) => {
+    const competitors = ev.competitions?.[0]?.competitors || [];
+    const hits = (target) =>
+      competitors.some((c) =>
+        [c.team.name, c.team.shortDisplayName, c.team.abbreviation, c.team.displayName]
+          .map(norm)
+          .some((n) => n && (n.includes(target) || target.includes(n)))
+      );
+    return hits(ta) && hits(tb);
+  }) || null;
+}
+
+function extractESPNInfo(event) {
+  if (!event) return null;
+  const comp = event.competitions?.[0];
+  if (!comp) return null;
+  const competitors = comp.competitors || [];
+  const away = competitors.find((c) => c.homeAway === "away");
+  const home = competitors.find((c) => c.homeAway === "home");
+  const awayAbbr  = away?.team?.abbreviation || "";
+  const homeAbbr  = home?.team?.abbreviation || "";
+  const awayScore = away?.score ?? null;
+  const homeScore = home?.score ?? null;
+  const hasScores = awayScore !== null && homeScore !== null;
+  const score = hasScores
+    ? `${awayAbbr} ${awayScore} – ${homeScore} ${homeAbbr}`
+    : "—";
+  const clock = event.status?.type?.shortDetail || "—";
+  const odds  = comp.odds?.[0];
+  const ouLine = odds?.overUnder != null ? String(odds.overUnder) : null;
+  const currentTotal = hasScores
+    ? (parseInt(awayScore, 10) || 0) + (parseInt(homeScore, 10) || 0)
+    : 0;
+  return { score, clock, ouLine, currentTotal };
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -1012,12 +1118,13 @@ function GameWidget({
             {game.expanded ? "▲ less" : "▼ more"}
           </span>
         </div>
+        {/* Score + clock row */}
         <div
           style={{
             display: "flex",
             gap: 10,
             alignItems: "center",
-            marginBottom: 10,
+            marginBottom: game.ouLine ? 5 : 10,
           }}
         >
           <span style={{ fontWeight: 700, color: T.textPrimary }}>
@@ -1039,6 +1146,50 @@ function GameWidget({
             {game.subtitle}
           </span>
         </div>
+
+        {/* O/U row */}
+        {game.ouLine && (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 10,
+              fontSize: "0.72rem",
+            }}
+          >
+            <span
+              style={{
+                background: T.badge,
+                border: `1px solid ${T.badgeBorder}`,
+                borderRadius: 4,
+                padding: "1px 7px",
+                color: T.textSecond,
+                fontWeight: 600,
+              }}
+            >
+              O/U {game.ouLine}
+            </span>
+            {game.currentTotal > 0 && (
+              <span style={{ color: T.textMuted }}>
+                {game.currentTotal} pts ·{" "}
+                <span
+                  style={{
+                    color:
+                      game.currentTotal > parseFloat(game.ouLine)
+                        ? T.alert
+                        : T.teamA,
+                    fontWeight: 600,
+                  }}
+                >
+                  {game.currentTotal > parseFloat(game.ouLine)
+                    ? "↑ Over"
+                    : "↓ Under"}
+                </span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Compact odds */}
         <div style={{ display: "flex", gap: 8 }}>
@@ -1189,8 +1340,8 @@ function GameWidget({
             >
               Win Probability (Kalshi)
             </div>
-            <ResponsiveContainer width="100%" height={80}>
-              <LineChart data={game.history}>
+            <ResponsiveContainer width="100%" height={90}>
+              <LineChart data={game.history} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
                 <XAxis dataKey="t" hide />
                 <YAxis domain={[0, 1]} hide />
                 <Tooltip
@@ -1223,13 +1374,29 @@ function GameWidget({
                 />
               </LineChart>
             </ResponsiveContainer>
+            {/* Time axis labels */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "0.62rem",
+                color: T.textFaint,
+                marginTop: 2,
+                paddingLeft: 4,
+                paddingRight: 4,
+              }}
+            >
+              <span>◄ Game Start</span>
+              <span>Now ►</span>
+            </div>
+            {/* Team legend */}
             <div
               style={{
                 display: "flex",
                 gap: 16,
                 fontSize: "0.68rem",
                 justifyContent: "center",
-                marginTop: 4,
+                marginTop: 5,
               }}
             >
               <span style={{ color: T.teamA, fontWeight: 600 }}>
@@ -1329,15 +1496,16 @@ function SearchTab({ onAddGame, dashboardIds }) {
   const [confirmGame, setConfirmGame] = useState(null);
   const [sportFilter, setSportFilter] = useState("all");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [liveNowMode, setLiveNowMode] = useState(false);
   const searchRef = useRef(null);
 
-  // Load all markets immediately on mount; debounce typed queries by 600ms
+  // Load today's markets on mount; debounce typed queries by 600ms
   useEffect(() => {
     if (searchRef.current) clearTimeout(searchRef.current);
     searchRef.current = setTimeout(async () => {
       setLoading(true);
       setApiError(false);
-      const data = await searchKalshiMarkets(query);
+      const data = await searchKalshiMarkets(query, { liveOnly: liveNowMode });
       if (data === null) {
         setApiError(true);
         setResults([]);
@@ -1347,14 +1515,16 @@ function SearchTab({ onAddGame, dashboardIds }) {
       setLoading(false);
     }, query.length > 0 ? 600 : 0);
     return () => clearTimeout(searchRef.current);
-  }, [query, refreshKey]);
+  }, [query, refreshKey, liveNowMode]);
 
   const handleLiveNow = () => {
     setSportFilter("all");
-    if (query === "") {
+    setQuery("");
+    if (liveNowMode) {
+      // Already in live mode — just refresh
       setRefreshKey((k) => k + 1);
     } else {
-      setQuery("");
+      setLiveNowMode(true);
     }
   };
 
@@ -1396,14 +1566,17 @@ function SearchTab({ onAddGame, dashboardIds }) {
           style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
           placeholder="e.g. Lakers, Chiefs, Yankees…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (liveNowMode) setLiveNowMode(false);
+          }}
         />
         <button
           onClick={handleLiveNow}
           style={{
-            background: !query ? T.btnPrimary : T.badge,
-            border: `1px solid ${!query ? T.btnPrimary : T.badgeBorder}`,
-            color: !query ? T.btnPrimaryTxt : T.textSecond,
+            background: liveNowMode ? T.live : T.badge,
+            border: `1px solid ${liveNowMode ? T.live : T.badgeBorder}`,
+            color: liveNowMode ? "#fff" : T.textSecond,
             padding: "8px 13px",
             borderRadius: 7,
             cursor: "pointer",
@@ -1493,18 +1666,25 @@ function SearchTab({ onAddGame, dashboardIds }) {
           Searching Kalshi markets…
         </div>
       )}
-      {!loading && !apiError && KALSHI_KEY && results.length === 0 && query && (
+      {!loading && !apiError && results.length === 0 && query && (
         <div
           style={{ color: T.textMuted, fontSize: "0.82rem", padding: "12px 0" }}
         >
-          No live markets found for "{query}"
+          No markets found for "{query}"
         </div>
       )}
-      {!loading && !apiError && KALSHI_KEY && results.length === 0 && !query && (
+      {!loading && !apiError && results.length === 0 && !query && liveNowMode && (
         <div
           style={{ color: T.textMuted, fontSize: "0.82rem", padding: "12px 0" }}
         >
-          No live markets found
+          No games live right now.
+        </div>
+      )}
+      {!loading && !apiError && results.length === 0 && !query && !liveNowMode && (
+        <div
+          style={{ color: T.textMuted, fontSize: "0.82rem", padding: "12px 0" }}
+        >
+          No games scheduled for today. Try searching for a team.
         </div>
       )}
 
@@ -1647,7 +1827,34 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [alertTarget, setAlertTarget] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
-  const tickRef = useRef(0);
+  const tickRef  = useRef(0);
+  const gamesRef = useRef([]);
+  useEffect(() => { gamesRef.current = games; }, [games]);
+
+  // Poll ESPN every 30s for live scores + O/U line
+  useEffect(() => {
+    const poll = async () => {
+      const cur = gamesRef.current;
+      if (!cur.length) return;
+      const sports = [...new Set(cur.filter((g) => !g.completed).map((g) => g.sport))];
+      for (const sport of sports) {
+        const events = await fetchESPNEvents(sport);
+        if (!events.length) continue;
+        setGames((prev) =>
+          prev.map((g) => {
+            if (g.sport !== sport || g.completed) return g;
+            const ev   = matchESPNEvent(events, g.teamA, g.teamB);
+            const info = extractESPNInfo(ev);
+            if (!info) return g;
+            return { ...g, score: info.score, clock: info.clock, ouLine: info.ouLine, currentTotal: info.currentTotal };
+          })
+        );
+      }
+    };
+    poll();
+    const iv = setInterval(poll, 30000);
+    return () => clearInterval(iv);
+  }, []); // reads games via gamesRef — no re-registration needed
 
   // Poll Kalshi every 5 seconds for pinned live games
   useEffect(() => {
@@ -1699,9 +1906,9 @@ export default function App() {
         })
       );
 
-      // Poll Kalshi for pinned live games
+      // Poll Kalshi for all live games on the dashboard
       const pinnedLive = games.filter(
-        (g) => g.pinned && g.isLive && !g.completed
+        (g) => g.isLive && !g.completed
       );
       for (const g of pinnedLive) {
         const market = await fetchMarketOdds(g.ticker);
@@ -1920,7 +2127,7 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "22px 24px" }}>
+      <div style={{ maxWidth: 1600, margin: "0 auto", padding: "22px 10px" }}>
         {!KALSHI_KEY && (
           <div
             style={{
