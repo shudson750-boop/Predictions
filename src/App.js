@@ -159,7 +159,7 @@ function kalshiMarketToGame(market) {
   //   "Chiefs at Eagles Winner"
   // Strip trailing " Winner" (case-insensitive), then split on " at " or " vs "
   const raw = (market.title || market.subtitle || "Unknown Market")
-    .replace(/\s+winner\s*$/i, "")
+    .replace(/\s+winner\??\s*$/i, "")
     .trim();
 
   let teamA, teamB;
