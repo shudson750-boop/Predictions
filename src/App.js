@@ -331,6 +331,7 @@ function kalshiMarketToGame(market) {
     awayLine: null,
     homeLine: null,
     clock: "Live",
+    gameSeconds: 0,
     pinned: false,
     expanded: false,
     feedExpanded: false,
@@ -396,7 +397,29 @@ function matchESPNEvent(events, teamA, teamB) {
 
 const DOW = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
 
-function extractESPNInfo(event) {
+// Total regulation seconds per sport
+function totalGameSecondsForSport(sport) {
+  if (sport.includes("NFL") || sport.includes("NCAAF")) return 4 * 15 * 60; // 3600
+  if (sport.includes("NBA"))                            return 4 * 12 * 60; // 2880
+  if (sport.includes("NHL"))                            return 3 * 20 * 60; // 3600
+  return 2 * 20 * 60;                                                        // 2400 (NCAAB / default)
+}
+
+// Elapsed game seconds from ESPN period + displayClock
+function computeGameElapsed(sport, period, displayClock, isCompleted) {
+  const total = totalGameSecondsForSport(sport);
+  if (isCompleted) return total;
+  if (!period || period < 1) return 0;
+  let periodSecs;
+  if (sport.includes("NFL") || sport.includes("NCAAF")) periodSecs = 15 * 60;
+  else if (sport.includes("NBA"))                        periodSecs = 12 * 60;
+  else                                                   periodSecs = 20 * 60; // NCAAB halves & NHL periods
+  const parts = (displayClock || "0:00").split(":");
+  const remaining = (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+  return Math.max(0, Math.min((period - 1) * periodSecs + (periodSecs - remaining), total));
+}
+
+function extractESPNInfo(event, sport = "") {
   if (!event) return null;
   const comp = event.competitions?.[0];
   if (!comp) return null;
@@ -444,7 +467,11 @@ function extractESPNInfo(event) {
   const currentTotal = hasScores
     ? (parseInt(awayScore, 10) || 0) + (parseInt(homeScore, 10) || 0)
     : 0;
-  return { score, awayLine, homeLine, clock, ouLine, currentTotal };
+  const period      = event.status?.period || 0;
+  const displayClock = event.status?.displayClock || "";
+  const isCompleted  = event.status?.type?.completed || false;
+  const gameSeconds  = computeGameElapsed(sport, period, displayClock, isCompleted);
+  return { score, awayLine, homeLine, clock, ouLine, currentTotal, gameSeconds };
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -1269,35 +1296,36 @@ function GameWidget({
               Win Probability (Kalshi)
             </div>
             {(() => {
-              // dotA/dotB declared here so they're in scope for both the chart and the legend
               const dotA = getTeamColor(game.teamA);
               const dotB = getTeamColor(game.teamB);
-              const n = game.history.length;
-              const chartData = game.history.map((h, i) => ({ ...h, t: i }));
-              const isFootball = game.sport.includes("NFL") || game.sport.includes("NCAAF");
-              const MAX_T = isFootball ? 360 : 240;
-              const htX = Math.round(MAX_T / 2);
-              const q1X = Math.round(MAX_T / 4);
-              const q3X = Math.round(3 * MAX_T / 4);
+              const n    = game.history.length;
+              // Full regulation duration in seconds (x-axis spans this entire range)
+              const totalSecs = totalGameSecondsForSport(game.sport);
+              // Static guide lines — always anchored to fixed fractions of game time
+              const htX = totalSecs / 2;
+              const q1X = totalSecs / 4;
+              const q3X = 3 * totalSecs / 4;
               return (
                 <>
                   <ResponsiveContainer width="100%" height={110}>
-                    <LineChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 18 }}>
-                      <XAxis dataKey="t" hide type="number" domain={[0, MAX_T]} />
+                    {/* history entries use t = actual elapsed game seconds */}
+                    <LineChart data={game.history} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                      <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
                       <YAxis domain={[0, 1]} hide />
                       <Tooltip
                         formatter={(v, name) => [pct(v), name === "teamA" ? game.teamA : game.teamB]}
                         labelFormatter={() => ""}
                         contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
                       />
-                      <ReferenceLine x={0} stroke={T.textMuted} strokeWidth={1.5}
-                        label={{ value: "Tip-off", position: "insideTopRight", fontSize: 9, fill: T.textMuted }}
-                      />
+                      {/* Game Start — left edge */}
+                      <ReferenceLine x={0} stroke={T.textMuted} strokeWidth={1} />
+                      {/* Quarter / half marks — dashed guides */}
                       <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
                       <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
-                      <ReferenceLine x={htX} stroke={T.textFaint} strokeWidth={1.5}
-                        label={{ value: "Halftime", position: "insideBottom", fontSize: 9, fill: T.textFaint }}
-                      />
+                      {/* Halftime — solid, label moved to bottom row below chart */}
+                      <ReferenceLine x={htX} stroke={T.textFaint} strokeWidth={1.5} />
+                      {/* Game End — right edge */}
+                      <ReferenceLine x={totalSecs} stroke={T.textMuted} strokeWidth={1} />
                       <Line type="linear" dataKey="teamA" stroke="none" strokeWidth={0} isAnimationActive={false}
                         dot={(props) => {
                           const { cx, cy, index } = props;
@@ -1328,9 +1356,10 @@ function GameWidget({
                       />
                     </LineChart>
                   </ResponsiveContainer>
-                  {/* Time axis labels */}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.62rem", color: T.textFaint, marginTop: 2, paddingLeft: 4, paddingRight: 4 }}>
+                  {/* Bottom labels: Game Start | Halftime (center) | Game End — all on same line */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.62rem", color: T.textFaint, marginTop: 2, paddingLeft: 4, paddingRight: 4 }}>
                     <span>◄ Game Start</span>
+                    <span>Halftime</span>
                     <span>Game End ►</span>
                   </div>
                   {/* Team legend */}
@@ -1725,9 +1754,9 @@ export default function App() {
           prev.map((g) => {
             if (g.sport !== sport || g.completed) return g;
             const ev   = matchESPNEvent(events, g.teamA, g.teamB);
-            const info = extractESPNInfo(ev);
+            const info = extractESPNInfo(ev, g.sport);
             if (!info) return g;
-            return { ...g, score: info.score, awayLine: info.awayLine, homeLine: info.homeLine, clock: info.clock, ouLine: info.ouLine, currentTotal: info.currentTotal };
+            return { ...g, score: info.score, awayLine: info.awayLine, homeLine: info.homeLine, clock: info.clock, ouLine: info.ouLine, currentTotal: info.currentTotal, gameSeconds: info.gameSeconds };
           })
         );
       }
@@ -1788,14 +1817,15 @@ export default function App() {
     const iv = setInterval(() => {
       setGames((prev) =>
         prev.map((g) => {
-          // Only snapshot once ESPN reports a real score (score "—" = game not yet started).
-          // clock defaults to "Live" before ESPN first runs, so we gate on score instead.
-          if (g.completed || g.score === "—") return g;
+          // Only snapshot while game is actively in progress.
+          // gameSeconds > 0 means ESPN has confirmed the clock is running.
+          if (g.completed || !g.gameSeconds || g.gameSeconds <= 0) return g;
           return {
             ...g,
             history: [
               ...g.history,
-              { t: g.history.length, teamA: g.kalshi.yes, teamB: g.kalshi.no },
+              // t = actual elapsed game seconds so dots land at the right spot on the fixed timeline
+              { t: g.gameSeconds, teamA: g.kalshi.yes, teamB: g.kalshi.no },
             ],
           };
         })
