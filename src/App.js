@@ -149,9 +149,25 @@ async function fetchMarketOdds(ticker) {
   }
 }
 
+// Extract the best YES probability from a Kalshi market object.
+// yes_ask/yes_bid are in cents (0–100); 0 means no order exists — treat as absent.
+// Priority: midpoint → ask → bid → last_price → 50 (neutral fallback)
+function extractYesProb(market) {
+  const ask  = market.yes_ask  > 0 ? market.yes_ask  : null;
+  const bid  = market.yes_bid  > 0 ? market.yes_bid  : null;
+  const last = market.last_price > 0 ? market.last_price : null;
+  let cents;
+  if (ask !== null && bid !== null) cents = (ask + bid) / 2;
+  else if (ask !== null)            cents = ask;
+  else if (bid !== null)            cents = bid;
+  else if (last !== null)           cents = last;
+  else                              cents = 50;
+  return +(cents / 100).toFixed(3);
+}
+
 // Convert Kalshi market data to our app's game format
 function kalshiMarketToGame(market) {
-  const yesPrice = +((market.yes_ask || market.yes_bid || 50) / 100).toFixed(3);
+  const yesPrice = extractYesProb(market);
   const noPrice = +(1 - yesPrice).toFixed(3);
 
   // Kalshi titles come in forms like:
@@ -1906,7 +1922,7 @@ export default function App() {
       for (const g of liveGames) {
         const market = await fetchMarketOdds(g.ticker);
         if (!market) continue;
-        const nK = (market.yes_ask || market.yes_bid || 50) / 100;
+        const nK = extractYesProb(market);
         setGames((prev) =>
           prev.map((pg) => {
             if (pg.id !== g.id) return pg;
