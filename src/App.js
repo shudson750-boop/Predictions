@@ -5,6 +5,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
 
@@ -1361,40 +1362,42 @@ function GameWidget({
             >
               Win Probability (Kalshi)
             </div>
-            <ResponsiveContainer width="100%" height={90}>
-              <LineChart data={game.history} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                <XAxis dataKey="t" hide />
-                <YAxis domain={[0, 1]} hide />
-                <Tooltip
-                  formatter={(v, n) => [
-                    pct(v),
-                    n === "teamA" ? game.teamA : game.teamB,
-                  ]}
-                  labelFormatter={() => ""}
-                  contentStyle={{
-                    background: T.modalBg,
-                    border: `1px solid ${T.modalBorder}`,
-                    borderRadius: 6,
-                    fontSize: 11,
-                    color: T.textPrimary,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="teamA"
-                  stroke={T.teamA}
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="teamB"
-                  stroke={T.teamB}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {(() => {
+              const n = game.history.length;
+              // Re-index history sequentially so positions are consistent
+              const chartData = game.history.map((h, i) => ({ ...h, t: i }));
+              const htX = Math.round((n - 1) / 2);
+              const q1X = Math.round((n - 1) / 4);
+              const q3X = Math.round(3 * (n - 1) / 4);
+              const showQLines = n >= 5 && q1X !== htX && q3X !== htX;
+              return (
+                <ResponsiveContainer width="100%" height={110}>
+                  <LineChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 18 }}>
+                    <XAxis dataKey="t" hide />
+                    <YAxis domain={[0, 1]} hide />
+                    <Tooltip
+                      formatter={(v, name) => [pct(v), name === "teamA" ? game.teamA : game.teamB]}
+                      labelFormatter={() => ""}
+                      contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
+                    />
+                    {/* Quarter marks — smaller, no label */}
+                    {showQLines && <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />}
+                    {showQLines && <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />}
+                    {/* Halftime — bold line + label underneath */}
+                    {n >= 3 && (
+                      <ReferenceLine
+                        x={htX}
+                        stroke={T.textFaint}
+                        strokeWidth={1.5}
+                        label={{ value: "Halftime", position: "insideBottom", fontSize: 9, fill: T.textFaint }}
+                      />
+                    )}
+                    <Line type="monotone" dataKey="teamA" stroke={T.teamA} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="teamB" stroke={T.teamB} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              );
+            })()}
             {/* Time axis labels */}
             <div
               style={{
@@ -1877,106 +1880,70 @@ export default function App() {
     return () => clearInterval(iv);
   }, []); // reads games via gamesRef — no re-registration needed
 
-  // Poll Kalshi every 5 seconds for pinned live games
+  // Poll Kalshi every 5 seconds — updates kalshi.yes/no only (no history here)
+  // Uses gamesRef to avoid stale closure; dep array is [] so interval never resets
   useEffect(() => {
     const iv = setInterval(async () => {
-      tickRef.current++;
+      // 1. Simulated random walk for demo (non-live) games
       setGames((prev) =>
         prev.map((g) => {
-          // Simulated tick for non-live (demo) games
-          if (!g.isLive && !g.completed) {
-            const nK = Math.max(
-              0.05,
-              Math.min(0.95, g.kalshi.yes + (Math.random() * 0.03 - 0.015))
-            );
-            const newHistory = [
-              ...g.history.slice(-35),
-              {
-                t: tickRef.current,
-                teamA: +nK.toFixed(3),
-                teamB: +(1 - nK).toFixed(3),
-              },
-            ];
-            let alertTriggered = g.alertTriggered;
-            if (g.alert && !g.alertTriggered) {
-              const hit =
-                g.alert.direction === "above"
-                  ? nK >= g.alert.threshold
-                  : nK <= g.alert.threshold;
-              if (hit) {
-                alertTriggered = true;
-                setNotifications((n) => [
-                  {
-                    id: Date.now(),
-                    text: `${g.title}: ${g.teamA} WIN crossed ${pct(
-                      g.alert.threshold
-                    )}`,
-                  },
-                  ...n.slice(0, 3),
-                ]);
-              }
+          if (g.isLive || g.completed) return g;
+          const nK = Math.max(0.05, Math.min(0.95, g.kalshi.yes + (Math.random() * 0.03 - 0.015)));
+          let alertTriggered = g.alertTriggered;
+          if (g.alert && !g.alertTriggered) {
+            const hit = g.alert.direction === "above" ? nK >= g.alert.threshold : nK <= g.alert.threshold;
+            if (hit) {
+              alertTriggered = true;
+              setNotifications((n) => [{ id: Date.now(), text: `${g.title}: ${g.teamA} WIN crossed ${pct(g.alert.threshold)}` }, ...n.slice(0, 3)]);
             }
-            return {
-              ...g,
-              kalshi: { yes: +nK.toFixed(3), no: +(1 - nK).toFixed(3) },
-              history: newHistory,
-              alertTriggered,
-            };
           }
-          return g;
+          return { ...g, kalshi: { yes: +nK.toFixed(3), no: +(1 - nK).toFixed(3) }, alertTriggered };
         })
       );
 
-      // Poll Kalshi for all live games on the dashboard
-      const pinnedLive = games.filter(
-        (g) => g.isLive && !g.completed
-      );
-      for (const g of pinnedLive) {
+      // 2. Fetch fresh Kalshi odds for all live dashboard games
+      const liveGames = gamesRef.current.filter((g) => g.isLive && !g.completed);
+      for (const g of liveGames) {
         const market = await fetchMarketOdds(g.ticker);
         if (!market) continue;
         const nK = (market.yes_ask || market.yes_bid || 50) / 100;
         setGames((prev) =>
           prev.map((pg) => {
             if (pg.id !== g.id) return pg;
-            const newHistory = [
-              ...pg.history.slice(-35),
-              {
-                t: tickRef.current,
-                teamA: +nK.toFixed(3),
-                teamB: +(1 - nK).toFixed(3),
-              },
-            ];
             let alertTriggered = pg.alertTriggered;
             if (pg.alert && !pg.alertTriggered) {
-              const hit =
-                pg.alert.direction === "above"
-                  ? nK >= pg.alert.threshold
-                  : nK <= pg.alert.threshold;
+              const hit = pg.alert.direction === "above" ? nK >= pg.alert.threshold : nK <= pg.alert.threshold;
               if (hit) {
                 alertTriggered = true;
-                setNotifications((n) => [
-                  {
-                    id: Date.now(),
-                    text: `${pg.title}: ${pg.teamA} WIN crossed ${pct(
-                      pg.alert.threshold
-                    )}`,
-                  },
-                  ...n.slice(0, 3),
-                ]);
+                setNotifications((n) => [{ id: Date.now(), text: `${pg.title}: ${pg.teamA} WIN crossed ${pct(pg.alert.threshold)}` }, ...n.slice(0, 3)]);
               }
             }
-            return {
-              ...pg,
-              kalshi: { yes: +nK.toFixed(3), no: +(1 - nK).toFixed(3) },
-              history: newHistory,
-              alertTriggered,
-            };
+            return { ...pg, kalshi: { yes: +nK.toFixed(3), no: +(1 - nK).toFixed(3) }, alertTriggered };
           })
         );
       }
     }, 5000);
     return () => clearInterval(iv);
-  }, [games]);
+  }, []); // gamesRef keeps this fresh without re-registering
+
+  // Snapshot current probabilities into history every 30 seconds
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setGames((prev) =>
+        prev.map((g) => {
+          if (g.completed) return g;
+          return {
+            ...g,
+            history: [
+              ...g.history,
+              { t: g.history.length, teamA: g.kalshi.yes, teamB: g.kalshi.no },
+            ],
+          };
+        })
+      );
+    }, 30000);
+    return () => clearInterval(iv);
+  }, []);
 
   const toggleExpand = (id) =>
     setGames((p) =>
