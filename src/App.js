@@ -328,6 +328,8 @@ function kalshiMarketToGame(market) {
     teamB,
     subtitle: market.subtitle || "",
     score: "—",
+    awayLine: null,
+    homeLine: null,
     clock: "Live",
     pinned: false,
     expanded: false,
@@ -392,6 +394,8 @@ function matchESPNEvent(events, teamA, teamB) {
   }) || null;
 }
 
+const DOW = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
 function extractESPNInfo(event) {
   if (!event) return null;
   const comp = event.competitions?.[0];
@@ -404,10 +408,13 @@ function extractESPNInfo(event) {
   const awayScore = away?.score ?? null;
   const homeScore = home?.score ?? null;
   const hasScores = awayScore !== null && homeScore !== null;
-  const score = hasScores
-    ? `${awayAbbr} ${awayScore} – ${homeScore} ${homeAbbr}`
-    : "—";
-  // ESPN returns times in ET (e.g. "7:30 PM ET"). Convert to CT (-1h) and drop timezone label.
+  // Legacy single-line score (used in notifications)
+  const score = hasScores ? `${awayAbbr} ${awayScore} – ${homeScore} ${homeAbbr}` : "—";
+  // Two-line score: "TROY - 45" / "NEB  - 23"
+  const awayLine = awayAbbr ? `${awayAbbr} - ${hasScores ? awayScore : "—"}` : null;
+  const homeLine = homeAbbr ? `${homeAbbr} - ${hasScores ? homeScore : "—"}` : null;
+
+  // ESPN returns times in ET (e.g. "7:30 PM ET"). Convert to CT (-1h), format as "THU 3/19 · 7:30".
   const rawClock = event.status?.type?.shortDetail || "—";
   const etMatch = rawClock.match(/^(\d+):(\d+)\s*(AM|PM)\s*ET$/i);
   let clock = rawClock;
@@ -415,24 +422,29 @@ function extractESPNInfo(event) {
     let h = parseInt(etMatch[1], 10);
     const m = etMatch[2];
     const ampm = etMatch[3].toUpperCase();
-    // Convert to 24h, subtract 1 for CT, convert back
     if (ampm === "PM" && h !== 12) h += 12;
     if (ampm === "AM" && h === 12) h = 0;
     h -= 1; // ET → CT
     if (h < 0) h += 24;
-    const newAmpm = h < 12 ? "AM" : "PM";
     let h12 = h % 12; if (h12 === 0) h12 = 12;
-    clock = `${h12}:${m} ${newAmpm}`;
+    const timeStr = `${h12}:${m}`;
+    // Pull day-of-week + date from the ESPN event timestamp
+    const eventDate = event.date ? new Date(event.date) : new Date();
+    const dow = DOW[eventDate.getDay()];
+    const mo  = eventDate.getMonth() + 1;
+    const dy  = eventDate.getDate();
+    clock = `${dow} ${mo}/${dy} · ${timeStr}`;
   } else {
-    // Remove any trailing timezone abbreviation (ET, EST, CST, etc.) for other formats
+    // Strip trailing timezone label from live/final clocks
     clock = rawClock.replace(/\s+[A-Z]{2,4}$/, "");
   }
+
   const odds  = comp.odds?.[0];
   const ouLine = odds?.overUnder != null ? String(odds.overUnder) : null;
   const currentTotal = hasScores
     ? (parseInt(awayScore, 10) || 0) + (parseInt(homeScore, 10) || 0)
     : 0;
-  return { score, clock, ouLine, currentTotal };
+  return { score, awayLine, homeLine, clock, ouLine, currentTotal };
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -1105,22 +1117,25 @@ function GameWidget({
             marginBottom: 10,
           }}
         >
-          {/* Left: Score + clock */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
-              Score
-            </span>
-            <span style={{ fontWeight: 700, color: T.textPrimary }}>
-              {game.score !== "—" ? game.score : "—"}
-            </span>
+          {/* Left: two-line score + clock badge */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {game.awayLine && game.homeLine ? (
+              <div style={{ fontFamily: "monospace", fontSize: "0.78rem", fontWeight: 700, color: T.textPrimary, lineHeight: 1.5 }}>
+                <div>{game.awayLine}</div>
+                <div>{game.homeLine}</div>
+              </div>
+            ) : (
+              <span style={{ fontSize: "0.75rem", color: T.textFaint }}>—</span>
+            )}
             <span
               style={{
-                fontSize: "0.72rem",
+                fontSize: "0.7rem",
                 background: T.badge,
                 color: T.btnPrimary,
-                padding: "1px 8px",
+                padding: "2px 8px",
                 borderRadius: 4,
                 fontWeight: 600,
+                whiteSpace: "nowrap",
               }}
             >
               {game.clock}
@@ -1712,7 +1727,7 @@ export default function App() {
             const ev   = matchESPNEvent(events, g.teamA, g.teamB);
             const info = extractESPNInfo(ev);
             if (!info) return g;
-            return { ...g, score: info.score, clock: info.clock, ouLine: info.ouLine, currentTotal: info.currentTotal };
+            return { ...g, score: info.score, awayLine: info.awayLine, homeLine: info.homeLine, clock: info.clock, ouLine: info.ouLine, currentTotal: info.currentTotal };
           })
         );
       }
