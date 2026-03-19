@@ -143,10 +143,7 @@ async function fetchMarketOdds(ticker) {
   try {
     const data = await kalshiRequest(`/markets/${ticker}`);
     const market = data.market || null;
-    if (market) {
-      console.log(`[Kalshi] ${ticker} → keys:`, Object.keys(market));
-      console.log(`[Kalshi] ${ticker} → full:`, JSON.stringify(market));
-    } else {
+    if (!market) {
       console.warn(`[Kalshi] ${ticker} returned no market object`, data);
     }
     return market;
@@ -157,20 +154,19 @@ async function fetchMarketOdds(ticker) {
 }
 
 // Extract the best YES probability from a Kalshi market object.
-// yes_ask/yes_bid are in cents (0–100); 0 means no order — treat as absent.
-// Priority: midpoint of ask+bid → ask → bid → last_price → 50 fallback
+// Kalshi returns prices as dollar strings in 0.0–1.0 range (e.g. "0.0300" = 3%)
+// using _dollars suffix fields. Priority: midpoint → ask → bid → last → 0.5
 function extractYesProb(market) {
-  const ask  = market.yes_ask   > 0 ? market.yes_ask   : null;
-  const bid  = market.yes_bid   > 0 ? market.yes_bid   : null;
-  const last = market.last_price > 0 ? market.last_price : null;
-  let cents;
-  if (ask !== null && bid !== null) cents = (ask + bid) / 2;
-  else if (ask !== null)            cents = ask;
-  else if (bid !== null)            cents = bid;
-  else if (last !== null)           cents = last;
-  else                              cents = 50;
-  console.log(`[extractYesProb] ask=${ask} bid=${bid} last=${last} → ${cents}¢ = ${(cents/100*100).toFixed(1)}%`);
-  return +(cents / 100).toFixed(3);
+  const ask  = parseFloat(market.yes_ask_dollars)   || 0;
+  const bid  = parseFloat(market.yes_bid_dollars)   || 0;
+  const last = parseFloat(market.last_price_dollars) || 0;
+  let prob;
+  if (ask > 0 && bid > 0) prob = (ask + bid) / 2;
+  else if (ask > 0)        prob = ask;
+  else if (bid > 0)        prob = bid;
+  else if (last > 0)       prob = last;
+  else                     prob = 0.5;
+  return +prob.toFixed(3);
 }
 
 // Convert Kalshi market data to our app's game format
