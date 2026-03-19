@@ -1255,116 +1255,84 @@ function GameWidget({
               Win Probability (Kalshi)
             </div>
             {(() => {
-              const n = game.history.length;
-              // Re-index history so each dot's t matches its snapshot index
-              const chartData = game.history.map((h, i) => ({ ...h, t: i }));
-              // Dots use each team's own brand color
+              // dotA/dotB declared here so they're in scope for both the chart and the legend
               const dotA = getTeamColor(game.teamA);
               const dotB = getTeamColor(game.teamB);
-
-              // Fixed full-game timeline: NFL/NCAAF ~3h (360 snaps), others ~2h (240 snaps)
+              const n = game.history.length;
+              const chartData = game.history.map((h, i) => ({ ...h, t: i }));
               const isFootball = game.sport.includes("NFL") || game.sport.includes("NCAAF");
               const MAX_T = isFootball ? 360 : 240;
-
-              // Static reference lines anchored to fixed fractions of the full game
               const htX = Math.round(MAX_T / 2);
               const q1X = Math.round(MAX_T / 4);
               const q3X = Math.round(3 * MAX_T / 4);
-
               return (
-                <ResponsiveContainer width="100%" height={110}>
-                  <LineChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 18 }}>
-                    {/* type="number" + fixed domain keeps x-axis stable as dots accumulate */}
-                    <XAxis dataKey="t" hide type="number" domain={[0, MAX_T]} />
-                    <YAxis domain={[0, 1]} hide />
-                    <Tooltip
-                      formatter={(v, name) => [pct(v), name === "teamA" ? game.teamA : game.teamB]}
-                      labelFormatter={() => ""}
-                      contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
-                    />
-                    {/* Game Start line — permanent left boundary; dots only appear to the right once the game begins */}
-                    <ReferenceLine
-                      x={0}
-                      stroke={T.textMuted}
-                      strokeWidth={1.5}
-                      label={{ value: "Tip-off", position: "insideTopRight", fontSize: 9, fill: T.textMuted }}
-                    />
-                    {/* Static quarter marks — always at fixed positions */}
-                    <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
-                    <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
-                    {/* Static halftime — always at the midpoint */}
-                    <ReferenceLine
-                      x={htX}
-                      stroke={T.textFaint}
-                      strokeWidth={1.5}
-                      label={{ value: "Halftime", position: "insideBottom", fontSize: 9, fill: T.textFaint }}
-                    />
-                    <Line type="linear" dataKey="teamA" stroke="none" strokeWidth={0} isAnimationActive={false}
-                      dot={(props) => {
-                        const { cx, cy, index } = props;
-                        const isLast = index === n - 1;
-                        if (isLast) return (
-                          <g key={`da-${index}`}>
-                            <circle cx={cx} cy={cy} r={5} fill={dotA} />
-                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={dotA} strokeWidth={1.5} strokeOpacity={0.5} />
-                          </g>
-                        );
-                        return <circle key={`da-${index}`} cx={cx} cy={cy} r={2.5} fill={dotA} fillOpacity={0.75} />;
-                      }}
-                      activeDot={false}
-                    />
-                    <Line type="linear" dataKey="teamB" stroke="none" strokeWidth={0} isAnimationActive={false}
-                      dot={(props) => {
-                        const { cx, cy, index } = props;
-                        const isLast = index === n - 1;
-                        if (isLast) return (
-                          <g key={`db-${index}`}>
-                            <circle cx={cx} cy={cy} r={5} fill={dotB} />
-                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={dotB} strokeWidth={1.5} strokeOpacity={0.5} />
-                          </g>
-                        );
-                        return <circle key={`db-${index}`} cx={cx} cy={cy} r={2.5} fill={dotB} fillOpacity={0.75} />;
-                      }}
-                      activeDot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <>
+                  <ResponsiveContainer width="100%" height={110}>
+                    <LineChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 18 }}>
+                      <XAxis dataKey="t" hide type="number" domain={[0, MAX_T]} />
+                      <YAxis domain={[0, 1]} hide />
+                      <Tooltip
+                        formatter={(v, name) => [pct(v), name === "teamA" ? game.teamA : game.teamB]}
+                        labelFormatter={() => ""}
+                        contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
+                      />
+                      <ReferenceLine x={0} stroke={T.textMuted} strokeWidth={1.5}
+                        label={{ value: "Tip-off", position: "insideTopRight", fontSize: 9, fill: T.textMuted }}
+                      />
+                      <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                      <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                      <ReferenceLine x={htX} stroke={T.textFaint} strokeWidth={1.5}
+                        label={{ value: "Halftime", position: "insideBottom", fontSize: 9, fill: T.textFaint }}
+                      />
+                      <Line type="linear" dataKey="teamA" stroke="none" strokeWidth={0} isAnimationActive={false}
+                        dot={(props) => {
+                          const { cx, cy, index } = props;
+                          const isLast = index === n - 1;
+                          if (isLast) return (
+                            <g key={`da-${index}`}>
+                              <circle cx={cx} cy={cy} r={5} fill={dotA} />
+                              <circle cx={cx} cy={cy} r={9} fill="none" stroke={dotA} strokeWidth={1.5} strokeOpacity={0.5} />
+                            </g>
+                          );
+                          return <circle key={`da-${index}`} cx={cx} cy={cy} r={2.5} fill={dotA} fillOpacity={0.75} />;
+                        }}
+                        activeDot={false}
+                      />
+                      <Line type="linear" dataKey="teamB" stroke="none" strokeWidth={0} isAnimationActive={false}
+                        dot={(props) => {
+                          const { cx, cy, index } = props;
+                          const isLast = index === n - 1;
+                          if (isLast) return (
+                            <g key={`db-${index}`}>
+                              <circle cx={cx} cy={cy} r={5} fill={dotB} />
+                              <circle cx={cx} cy={cy} r={9} fill="none" stroke={dotB} strokeWidth={1.5} strokeOpacity={0.5} />
+                            </g>
+                          );
+                          return <circle key={`db-${index}`} cx={cx} cy={cy} r={2.5} fill={dotB} fillOpacity={0.75} />;
+                        }}
+                        activeDot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  {/* Time axis labels */}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.62rem", color: T.textFaint, marginTop: 2, paddingLeft: 4, paddingRight: 4 }}>
+                    <span>◄ Game Start</span>
+                    <span>Game End ►</span>
+                  </div>
+                  {/* Team legend */}
+                  <div style={{ display: "flex", gap: 16, fontSize: "0.68rem", justifyContent: "center", marginTop: 5 }}>
+                    <span style={{ color: dotA, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                      <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotA} /></svg>
+                      {game.teamA}
+                    </span>
+                    <span style={{ color: dotB, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                      <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotB} /></svg>
+                      {game.teamB}
+                    </span>
+                  </div>
+                </>
               );
             })()}
-            {/* Time axis labels */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: "0.62rem",
-                color: T.textFaint,
-                marginTop: 2,
-                paddingLeft: 4,
-                paddingRight: 4,
-              }}
-            >
-              <span>◄ Game Start</span>
-              <span>Game End ►</span>
-            </div>
-            {/* Team legend */}
-            <div
-              style={{
-                display: "flex",
-                gap: 16,
-                fontSize: "0.68rem",
-                justifyContent: "center",
-                marginTop: 5,
-              }}
-            >
-              <span style={{ color: dotA, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotA} /></svg>
-                {game.teamA}
-              </span>
-              <span style={{ color: dotB, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={dotB} /></svg>
-                {game.teamB}
-              </span>
-            </div>
           </div>
 
           {/* Kelly calculators */}
