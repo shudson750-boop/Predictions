@@ -1877,10 +1877,7 @@ export default function App() {
       >
         <div>
           <div style={{ fontWeight: 800, fontSize: "1rem", color: "#FFFFFF" }}>
-            LiveMarkets
-          </div>
-          <div style={{ fontSize: "0.58rem", color: "#A8D5A2", marginTop: -1 }}>
-            Kalshi Sports Tracker
+            Dingus Dashboard
           </div>
         </div>
         <div style={{ display: "flex", gap: 2 }}>
