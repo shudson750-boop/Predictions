@@ -422,37 +422,39 @@ function KellyCalc({ teamA, teamB, teamAProb, teamBProb, openKalshiA, openKalshi
   };
 
   return (
-    <div style={{ background: T.calcCard, border: `1px solid ${T.calcBorder}`, borderRadius: 9, marginBottom: 9 }}>
+    <div style={{ marginBottom: 9 }}>
 
-      {/* ── Collapsible header ── */}
-      <div
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 13px", cursor: "pointer", userSelect: "none" }}
-        onClick={() => setIsOpen((o) => !o)}
-      >
-        <span style={{ fontSize: "0.75rem", fontWeight: 700, color: T.btnPrimary }}>
-          ⚖ Kelly Calculator{teamName ? ` · ${teamName}` : ""}
-        </span>
-        <div style={{ display: "flex", gap: 5, alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+      {/* ── Header — matches play-by-play style ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.7rem", color: T.btnPrimary, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, padding: "4px 0" }}
+          onClick={() => setIsOpen((o) => !o)}
+        >
+          {isOpen ? "▼" : "▶"} {isOpen ? "Hide" : "Show"} Kelly Calculator
+        </button>
+        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
           <button
-            style={{ background: T.badge, border: `1px solid ${T.badgeBorder}`, borderRadius: 5, cursor: "pointer", fontSize: "0.73rem", padding: "2px 9px", color: T.textSecond }}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.72rem", color: T.textMuted, padding: "2px 5px" }}
+            title="Duplicate"
             onClick={onDuplicate}
           >
-            ⧉ Duplicate
+            ⧉
           </button>
           {!isOnly && (
-            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.8rem", color: T.alert }} onClick={onRemove}>
+            <button
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.72rem", color: T.textMuted, padding: "2px 5px" }}
+              title="Remove"
+              onClick={onRemove}
+            >
               ✕
             </button>
           )}
-          <span style={{ fontSize: "0.68rem", color: T.textMuted, marginLeft: 2, pointerEvents: "none" }}>
-            {isOpen ? "▲" : "▼"}
-          </span>
         </div>
       </div>
 
       {/* ── Expanded body ── */}
       {isOpen && (
-        <div style={{ padding: "0 13px 13px" }}>
+        <div style={{ background: T.calcCard, border: `1px solid ${T.calcBorder}`, borderRadius: 9, padding: "10px 13px 13px", marginTop: 6 }}>
 
           {/* 3-col inputs: Team | Beginning Odds | Wager */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
@@ -1205,11 +1207,13 @@ function GameWidget({
                 marginTop: 5,
               }}
             >
-              <span style={{ color: T.teamA, fontWeight: 600 }}>
-                — {game.teamA}
+              <span style={{ color: T.teamA, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={T.teamA} /></svg>
+                {game.teamA}
               </span>
-              <span style={{ color: T.teamB, fontWeight: 600 }}>
-                — {game.teamB}
+              <span style={{ color: T.teamB, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={T.teamB} /></svg>
+                {game.teamB}
               </span>
             </div>
           </div>
