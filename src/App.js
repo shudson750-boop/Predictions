@@ -1122,34 +1122,39 @@ function GameWidget({
             </div>
             {(() => {
               const n = game.history.length;
-              // Re-index history sequentially so positions are consistent
+              // Re-index history so each dot's t matches its snapshot index
               const chartData = game.history.map((h, i) => ({ ...h, t: i }));
-              const htX = Math.round((n - 1) / 2);
-              const q1X = Math.round((n - 1) / 4);
-              const q3X = Math.round(3 * (n - 1) / 4);
-              const showQLines = n >= 5 && q1X !== htX && q3X !== htX;
+
+              // Fixed full-game timeline: NFL/NCAAF ~3h (360 snaps), others ~2h (240 snaps)
+              const isFootball = game.sport.includes("NFL") || game.sport.includes("NCAAF");
+              const MAX_T = isFootball ? 360 : 240;
+
+              // Static reference lines anchored to fixed fractions of the full game
+              const htX = Math.round(MAX_T / 2);
+              const q1X = Math.round(MAX_T / 4);
+              const q3X = Math.round(3 * MAX_T / 4);
+
               return (
                 <ResponsiveContainer width="100%" height={110}>
                   <LineChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 18 }}>
-                    <XAxis dataKey="t" hide />
+                    {/* type="number" + fixed domain keeps x-axis stable as dots accumulate */}
+                    <XAxis dataKey="t" hide type="number" domain={[0, MAX_T]} />
                     <YAxis domain={[0, 1]} hide />
                     <Tooltip
                       formatter={(v, name) => [pct(v), name === "teamA" ? game.teamA : game.teamB]}
                       labelFormatter={() => ""}
                       contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
                     />
-                    {/* Quarter marks — smaller, no label */}
-                    {showQLines && <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />}
-                    {showQLines && <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />}
-                    {/* Halftime — bold line + label underneath */}
-                    {n >= 3 && (
-                      <ReferenceLine
-                        x={htX}
-                        stroke={T.textFaint}
-                        strokeWidth={1.5}
-                        label={{ value: "Halftime", position: "insideBottom", fontSize: 9, fill: T.textFaint }}
-                      />
-                    )}
+                    {/* Static quarter marks — always at fixed positions */}
+                    <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                    <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                    {/* Static halftime — always at the midpoint */}
+                    <ReferenceLine
+                      x={htX}
+                      stroke={T.textFaint}
+                      strokeWidth={1.5}
+                      label={{ value: "Halftime", position: "insideBottom", fontSize: 9, fill: T.textFaint }}
+                    />
                     <Line type="linear" dataKey="teamA" stroke="none" strokeWidth={0} isAnimationActive={false}
                       dot={(props) => {
                         const { cx, cy, index } = props;
@@ -1657,7 +1662,9 @@ export default function App() {
     const iv = setInterval(() => {
       setGames((prev) =>
         prev.map((g) => {
-          if (g.completed) return g;
+          // Only snapshot once ESPN confirms the game is in progress
+          // (clock "—" means game hasn't started yet; skip to avoid pre-game noise)
+          if (g.completed || g.clock === "—") return g;
           return {
             ...g,
             history: [
