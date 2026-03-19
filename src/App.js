@@ -1145,6 +1145,13 @@ function GameWidget({
                       labelFormatter={() => ""}
                       contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
                     />
+                    {/* Game Start line — permanent left boundary; dots only appear to the right once the game begins */}
+                    <ReferenceLine
+                      x={0}
+                      stroke={T.textMuted}
+                      strokeWidth={1.5}
+                      label={{ value: "Tip-off", position: "insideTopRight", fontSize: 9, fill: T.textMuted }}
+                    />
                     {/* Static quarter marks — always at fixed positions */}
                     <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
                     <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
@@ -1200,7 +1207,7 @@ function GameWidget({
               }}
             >
               <span>◄ Game Start</span>
-              <span>Now ►</span>
+              <span>Game End ►</span>
             </div>
             {/* Team legend */}
             <div
@@ -1662,9 +1669,9 @@ export default function App() {
     const iv = setInterval(() => {
       setGames((prev) =>
         prev.map((g) => {
-          // Only snapshot once ESPN confirms the game is in progress
-          // (clock "—" means game hasn't started yet; skip to avoid pre-game noise)
-          if (g.completed || g.clock === "—") return g;
+          // Only snapshot once ESPN reports a real score (score "—" = game not yet started).
+          // clock defaults to "Live" before ESPN first runs, so we gate on score instead.
+          if (g.completed || g.score === "—") return g;
           return {
             ...g,
             history: [
