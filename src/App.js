@@ -144,7 +144,8 @@ async function fetchMarketOdds(ticker) {
     const data = await kalshiRequest(`/markets/${ticker}`);
     const market = data.market || null;
     if (market) {
-      console.log(`[Kalshi] ${ticker} → yes_ask=${market.yes_ask} yes_bid=${market.yes_bid} last_price=${market.last_price}`);
+      console.log(`[Kalshi] ${ticker} → keys:`, Object.keys(market));
+      console.log(`[Kalshi] ${ticker} → full:`, JSON.stringify(market));
     } else {
       console.warn(`[Kalshi] ${ticker} returned no market object`, data);
     }
