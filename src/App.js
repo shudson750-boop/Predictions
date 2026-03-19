@@ -150,13 +150,33 @@ async function fetchMarketOdds(ticker) {
 
 // Convert Kalshi market data to our app's game format
 function kalshiMarketToGame(market) {
- const yesPrice = +((market.yes_ask || market.yes_bid || 50) / 100).toFixed(3);
+  const yesPrice = +((market.yes_ask || market.yes_bid || 50) / 100).toFixed(3);
   const noPrice = +(1 - yesPrice).toFixed(3);
-  // Extract team names from the market title
-  const title = market.title || market.subtitle || "Unknown Market";
-  const parts = title.split(" vs ");
-  const teamA = parts[0]?.trim() || "Team A";
-  const teamB = parts[1]?.trim() || "Team B";
+
+  // Kalshi titles come in forms like:
+  //   "Miami (OH) at SMU Winner"
+  //   "Lakers vs Celtics"
+  //   "Chiefs at Eagles Winner"
+  // Strip trailing " Winner" (case-insensitive), then split on " at " or " vs "
+  const raw = (market.title || market.subtitle || "Unknown Market")
+    .replace(/\s+winner\s*$/i, "")
+    .trim();
+
+  let teamA, teamB;
+  if (raw.includes(" at ")) {
+    const parts = raw.split(" at ");
+    teamA = parts[0]?.trim() || "Team A";
+    teamB = parts[1]?.trim() || "Team B";
+  } else if (raw.includes(" vs ")) {
+    const parts = raw.split(" vs ");
+    teamA = parts[0]?.trim() || "Team A";
+    teamB = parts[1]?.trim() || "Team B";
+  } else {
+    teamA = raw;
+    teamB = "Team B";
+  }
+
+  const title = `${teamA} vs ${teamB}`;
 
   return {
     id: market.ticker,
