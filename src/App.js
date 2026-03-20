@@ -1148,9 +1148,9 @@ function GameWidget({
           const leftScore  = parseScore(game.swapped ? game.homeLine : game.awayLine);
           const rightScore = parseScore(game.swapped ? game.awayLine : game.homeLine);
           return (
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {/* Left: Team A */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
+              {/* Left: Team A — right-aligned so text crowds toward the center "vs" */}
+              <div style={{ textAlign: "right", minWidth: 80, maxWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontSize: "1.05rem", color: T.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {aName}
                 </div>
@@ -1160,15 +1160,15 @@ function GameWidget({
               </div>
 
               {/* Center: vs + clock badge */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0, padding: "0 4px" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0 }}>
                 <span style={{ fontSize: "0.78rem", color: T.textMuted, fontWeight: 600 }}>vs</span>
                 <span style={{ fontSize: "0.68rem", background: T.badge, color: T.btnPrimary, padding: "2px 7px", borderRadius: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
                   {game.clock}
                 </span>
               </div>
 
-              {/* Right: Team B */}
-              <div style={{ flex: 1, minWidth: 0, textAlign: "right" }}>
+              {/* Right: Team B — left-aligned so text crowds toward the center "vs" */}
+              <div style={{ textAlign: "left", minWidth: 80, maxWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontSize: "1.05rem", color: T.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {bName}
                 </div>
