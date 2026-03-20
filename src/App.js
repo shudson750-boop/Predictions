@@ -220,12 +220,12 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
               : null;
             if (!expTime) return true;
             if (liveOnly) {
-              // Live Now: game currently in progress.
-              // expected_expiration_time ≈ game end, so a live game expires between
-              // 1h ago (running long / just finished) and 2.5h from now (in progress).
+              // Live Now: game in progress or just finished.
+              // Window is intentionally wide ([now-3h, now+5h]) because Kalshi's
+              // expected_expiration_time can be set conservatively late.
               return (
-                expTime >= new Date(now.getTime() - 1 * 3600 * 1000) &&
-                expTime <= new Date(now.getTime() + 2.5 * 3600 * 1000)
+                expTime >= new Date(now.getTime() - 3 * 3600 * 1000) &&
+                expTime <= new Date(now.getTime() + 5 * 3600 * 1000)
               );
             } else {
               // Show games expected within the next 7 days
@@ -1460,12 +1460,7 @@ function SearchTab({ onAddGame, dashboardIds }) {
   const handleLiveNow = () => {
     setSportFilter("all");
     setQuery("");
-    if (liveNowMode) {
-      // Already in live mode — just refresh
-      setRefreshKey((k) => k + 1);
-    } else {
-      setLiveNowMode(true);
-    }
+    setLiveNowMode((prev) => !prev);
   };
 
   const sports = ["all", ...new Set(results.map((g) => g.sport))];
