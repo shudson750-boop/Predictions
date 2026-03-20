@@ -365,6 +365,7 @@ function kalshiMarketToGame(market) {
     ouLine: null,
     openOuLine: null,   // frozen on first ESPN value — never updated after set
     currentTotal: 0,
+    ouHistory: [],      // { t: gameSeconds, total: currentTotal } snapshots
   };
 }
 
@@ -1180,42 +1181,7 @@ function GameWidget({
             </span>
           </div>
 
-          {/* Right: O/U */}
-          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "0.72rem" }}>
-            <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600 }}>
-              O/U
-            </span>
-            <span
-              style={{
-                background: T.badge,
-                border: `1px solid ${T.badgeBorder}`,
-                borderRadius: 4,
-                padding: "1px 7px",
-                color: game.openOuLine ? T.textSecond : T.textFaint,
-                fontWeight: 600,
-              }}
-            >
-              {game.openOuLine || "—"}
-            </span>
-            {game.openOuLine && game.currentTotal > 0 && (
-              <span style={{ color: T.textMuted }}>
-                {game.currentTotal} pts ·{" "}
-                <span
-                  style={{
-                    color:
-                      game.currentTotal > parseFloat(game.openOuLine)
-                        ? T.alert
-                        : T.teamA,
-                    fontWeight: 600,
-                  }}
-                >
-                  {game.currentTotal > parseFloat(game.openOuLine)
-                    ? "↑ Over"
-                    : "↓ Under"}
-                </span>
-              </span>
-            )}
-          </div>
+          {/* O/U moved to dedicated chart below win probability */}
         </div>
 
         {/* Compact odds — left: team name + opening %; right: live % in team color + odds */}
@@ -1378,6 +1344,106 @@ function GameWidget({
               );
             })()}
           </div>
+
+          {/* O/U Tracker chart — only shown when we have an opening O/U line */}
+          {game.openOuLine && (() => {
+            const GOLD = "#F59E0B";
+            const HIST_DOT = "#14532d";
+            const openOu = parseFloat(game.openOuLine) || 0;
+            const totalSecs = totalGameSecondsForSport(game.sport);
+            const htX = totalSecs / 2;
+            const q1X = totalSecs / 4;
+            const q3X = 3 * totalSecs / 4;
+            const n = game.ouHistory.length;
+
+            // Build combined dataset: trend boundary points + actual history
+            // Each history point gets an isLast flag so the dot renderer can make the bullseye
+            const seenT = new Set();
+            const ouChartData = [
+              { t: 0, trend: 0 },
+              ...game.ouHistory.map((h, i) => ({
+                t: h.t,
+                total: h.total,
+                isLast: i === n - 1,
+                trend: +(h.t / totalSecs * openOu).toFixed(1),
+              })),
+              { t: totalSecs, trend: openOu },
+            ]
+              .sort((a, b) => a.t - b.t)
+              .filter((p) => { if (seenT.has(p.t)) return false; seenT.add(p.t); return true; });
+
+            const latestScore = n > 0 ? game.ouHistory[n - 1].total : 0;
+            const yMax = Math.max(openOu * 1.15, latestScore > 0 ? latestScore * 1.1 : openOu * 1.15);
+
+            return (
+              <div style={{ borderTop: `1px solid ${T.divider}`, paddingTop: 10, marginBottom: 4 }}>
+                <div style={{ fontSize: "0.72rem", color: T.textMuted, fontWeight: 600, marginBottom: 4, paddingLeft: 2 }}>
+                  O/U Tracker
+                </div>
+                <ResponsiveContainer width="100%" height={110}>
+                  <LineChart data={ouChartData} margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
+                    <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
+                    <YAxis hide domain={[0, yMax]} />
+                    <Tooltip
+                      formatter={(v, name) => name === "total" ? [`${v} pts`, "Score"] : [`${v}`, "O/U Pace"]}
+                      labelFormatter={() => ""}
+                      contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
+                    />
+                    {/* Time guides — same as win probability */}
+                    <ReferenceLine x={0} stroke={T.textMuted} strokeWidth={1} />
+                    <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                    <ReferenceLine x={htX} stroke={T.textFaint} strokeWidth={1.5} />
+                    <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                    <ReferenceLine x={totalSecs} stroke={T.textMuted} strokeWidth={1} />
+                    {/* O/U target label at right end of trend line */}
+                    <ReferenceLine
+                      y={openOu}
+                      stroke="transparent"
+                      label={{ value: game.openOuLine, position: "right", fontSize: 9, fill: GOLD, fontWeight: 700 }}
+                    />
+                    {/* Diagonal trend line — dashed gold */}
+                    <Line
+                      type="linear"
+                      dataKey="trend"
+                      stroke={GOLD}
+                      strokeWidth={1.5}
+                      strokeDasharray="5 3"
+                      dot={false}
+                      isAnimationActive={false}
+                      activeDot={false}
+                    />
+                    {/* Live score dots — dark green history, gold bullseye for latest */}
+                    <Line
+                      type="linear"
+                      dataKey="total"
+                      stroke="none"
+                      strokeWidth={0}
+                      isAnimationActive={false}
+                      connectNulls={false}
+                      dot={(props) => {
+                        const { cx, cy, payload, index } = props;
+                        if (payload.total == null) return <g key={`ou-${index}`} />;
+                        if (payload.isLast) return (
+                          <g key={`ou-${index}`}>
+                            <circle cx={cx} cy={cy} r={5} fill={GOLD} />
+                            <circle cx={cx} cy={cy} r={9} fill="none" stroke={GOLD} strokeWidth={1.5} strokeOpacity={0.5} />
+                          </g>
+                        );
+                        return <circle key={`ou-${index}`} cx={cx} cy={cy} r={2.5} fill={HIST_DOT} fillOpacity={0.85} />;
+                      }}
+                      activeDot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                {/* Bottom labels match win probability */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.62rem", color: T.textFaint, marginTop: 2, paddingLeft: 4, paddingRight: 4 }}>
+                  <span>◄ Game Start</span>
+                  <span>Halftime</span>
+                  <span>Game End ►</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Kelly calculators */}
           <div style={{ borderTop: `1px solid ${T.divider}`, paddingTop: 12 }}>
@@ -1867,8 +1933,11 @@ export default function App() {
             openKalshiLocked,
             history: [
               ...g.history,
-              // t = actual elapsed game seconds so dots land at the right spot on the fixed timeline
               { t: g.gameSeconds, teamA: g.kalshi.yes, teamB: g.kalshi.no },
+            ],
+            ouHistory: [
+              ...g.ouHistory,
+              { t: g.gameSeconds, total: g.currentTotal },
             ],
           };
         })
