@@ -220,13 +220,13 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
               : null;
             if (!expTime) return true;
             if (liveOnly) {
-              // Live Now: game in progress or just finished.
-              // Window is intentionally wide ([now-3h, now+5h]) because Kalshi's
-              // expected_expiration_time can be set conservatively late.
-              return (
-                expTime >= new Date(now.getTime() - 3 * 3600 * 1000) &&
-                expTime <= new Date(now.getTime() + 5 * 3600 * 1000)
-              );
+              // For Live Now, just restrict to today. ESPN cross-reference (done
+              // in SearchTab) does the real "currently in progress" filtering.
+              const todayEnd = new Date(now);
+              todayEnd.setHours(23, 59, 59, 999);
+              const todayStart = new Date(now);
+              todayStart.setHours(0, 0, 0, 0);
+              return expTime >= todayStart && expTime <= todayEnd;
             } else {
               // Show games expected within the next 7 days
               return expTime <= new Date(now.getTime() + 7 * 24 * 3600 * 1000);
@@ -395,6 +395,27 @@ async function fetchESPNEvents(sport) {
     return data.events || [];
   } catch {
     return [];
+  }
+}
+
+// Returns a Set of lowercased team name variants currently IN PROGRESS per ESPN.
+// Used by the Live Now filter to cross-reference Kalshi search results.
+async function fetchLiveTeamNames() {
+  try {
+    const events = await fetchESPNEvents("🏀 NCAAB");
+    const names = new Set();
+    events.forEach((ev) => {
+      const s = ev.status?.type;
+      // Only games with a running clock (not scheduled, not final)
+      if (!s || s.completed || s.name === "STATUS_SCHEDULED" || s.name === "STATUS_PREGAME") return;
+      ev.competitions?.[0]?.competitors?.forEach((c) => {
+        [c.team?.displayName, c.team?.shortDisplayName, c.team?.abbreviation, c.team?.name]
+          .forEach((n) => { if (n) names.add(n.toLowerCase()); });
+      });
+    });
+    return names;
+  } catch {
+    return new Set();
   }
 }
 
@@ -1450,12 +1471,24 @@ function SearchTab({ onAddGame, dashboardIds }) {
     searchRef.current = setTimeout(async () => {
       setLoading(true);
       setApiError(false);
-      const data = await searchKalshiMarkets(query, { liveOnly: liveNowMode });
+      // When Live Now is active, fetch Kalshi + ESPN in parallel
+      const [data, liveNames] = await Promise.all([
+        searchKalshiMarkets(query, { liveOnly: liveNowMode }),
+        liveNowMode ? fetchLiveTeamNames() : Promise.resolve(null),
+      ]);
       if (data === null) {
         setApiError(true);
         setResults([]);
       } else {
-        setResults(data.map(kalshiMarketToGame));
+        let games = data.map(kalshiMarketToGame);
+        // Cross-reference with ESPN: only keep games where at least one team
+        // is currently in progress per the live scoreboard
+        if (liveNowMode && liveNames && liveNames.size > 0) {
+          games = games.filter((g) =>
+            liveNames.has(g.teamA.toLowerCase()) || liveNames.has(g.teamB.toLowerCase())
+          );
+        }
+        setResults(games);
       }
       setLoading(false);
     }, query.length > 0 ? 600 : 0);
