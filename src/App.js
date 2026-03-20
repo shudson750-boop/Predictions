@@ -1129,68 +1129,56 @@ function GameWidget({
         </div>
       </div>
 
-      {/* Title + score */}
+      {/* Title + score — 3-column spread layout */}
       <div
-        style={{ cursor: "pointer" }}
+        style={{ cursor: "pointer", marginBottom: 10 }}
         onClick={() => onToggleExpand(game.id)}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 700,
-              fontSize: "1rem",
-              color: T.textPrimary,
-              marginBottom: 4,
-            }}
-          >
-            {game.title}
-          </div>
+        {/* ▲/▼ toggle hint — top right */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 2 }}>
           <span style={{ fontSize: "0.62rem", color: T.textFaint }}>
             {game.expanded ? "▲ less" : "▼ more"}
           </span>
         </div>
-        {/* Score + clock + O/U row — all on one line */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 10,
-          }}
-        >
-          {/* Left: two-line score + clock badge */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {game.awayLine && game.homeLine ? (
-              <div style={{ fontFamily: "monospace", fontSize: "0.78rem", fontWeight: 700, color: T.textPrimary, lineHeight: 1.5 }}>
-                <div>{game.awayLine}</div>
-                <div>{game.homeLine}</div>
-              </div>
-            ) : (
-              <span style={{ fontSize: "0.75rem", color: T.textFaint }}>—</span>
-            )}
-            <span
-              style={{
-                fontSize: "0.7rem",
-                background: T.badge,
-                color: T.btnPrimary,
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {game.clock}
-            </span>
-          </div>
 
-          {/* O/U moved to dedicated chart below win probability */}
-        </div>
+        {/* Three-column: Team A | vs + clock | Team B */}
+        {(() => {
+          // Strip abbreviation — parse just the score number from "HOF - 59" → "59"
+          const parseScore = (line) => line?.match(/\d+$/)?.[0] ?? "—";
+          const leftScore  = parseScore(game.swapped ? game.homeLine : game.awayLine);
+          const rightScore = parseScore(game.swapped ? game.awayLine : game.homeLine);
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {/* Left: Team A */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: "1.05rem", color: T.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {aName}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: "1.6rem", color: T.textPrimary, lineHeight: 1.1, marginTop: 2 }}>
+                  {leftScore}
+                </div>
+              </div>
+
+              {/* Center: vs + clock badge */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0, padding: "0 4px" }}>
+                <span style={{ fontSize: "0.78rem", color: T.textMuted, fontWeight: 600 }}>vs</span>
+                <span style={{ fontSize: "0.68rem", background: T.badge, color: T.btnPrimary, padding: "2px 7px", borderRadius: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {game.clock}
+                </span>
+              </div>
+
+              {/* Right: Team B */}
+              <div style={{ flex: 1, minWidth: 0, textAlign: "right" }}>
+                <div style={{ fontWeight: 700, fontSize: "1.05rem", color: T.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {bName}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: "1.6rem", color: T.textPrimary, lineHeight: 1.1, marginTop: 2 }}>
+                  {rightScore}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Compact odds — left: team name + opening %; right: live % in team color + odds */}
         <div style={{ display: "flex", gap: 8 }}>
@@ -1362,7 +1350,7 @@ function GameWidget({
                 border: "none",
                 cursor: "pointer",
                 fontSize: "0.7rem",
-                color: T.textSecond,
+                color: T.btnPrimary,
                 fontWeight: 600,
                 display: "flex",
                 alignItems: "center",
@@ -1550,7 +1538,7 @@ function GameWidget({
                 border: "none",
                 cursor: "pointer",
                 fontSize: "0.7rem",
-                color: T.textSecond,
+                color: T.btnPrimary,
                 fontWeight: 600,
                 display: "flex",
                 alignItems: "center",
