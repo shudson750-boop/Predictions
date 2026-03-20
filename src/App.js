@@ -1087,8 +1087,9 @@ function GameWidget({
               action: () => onSetAlert(game.id),
             },
             {
-              icon: game.pinned ? "📌" : "📍",
+              icon: "📌",
               title: game.pinned ? "Unpin" : "Pin",
+              style: game.pinned ? {} : { filter: "grayscale(1)", opacity: 0.35 },
               action: () => onTogglePin(game.id),
             },
             {
@@ -1097,7 +1098,7 @@ function GameWidget({
               action: () => onComplete(game.id),
             },
             { icon: "✕", title: "Remove", action: () => onRemove(game.id) },
-          ].map(({ icon, title, action }) => (
+          ].map(({ icon, title, action, style: extraStyle }) => (
             <button
               key={title}
               title={title}
@@ -1110,6 +1111,7 @@ function GameWidget({
                 padding: "3px 6px",
                 borderRadius: 4,
                 color: T.textMuted,
+                ...extraStyle,
               }}
             >
               {icon}
@@ -1736,6 +1738,19 @@ function SearchTab({ onAddGame, dashboardIds }) {
   );
 }
 
+// ─── PIN PERSISTENCE ──────────────────────────────────────────────────────────
+const PINNED_KEY = "dingus_pinned_ids";
+function loadPinnedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(PINNED_KEY) || "[]")); }
+  catch { return new Set(); }
+}
+function savePinnedIds(games) {
+  try {
+    const ids = games.filter((g) => g.pinned).map((g) => g.id);
+    localStorage.setItem(PINNED_KEY, JSON.stringify(ids));
+  } catch {}
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState("dashboard");
@@ -1867,9 +1882,11 @@ export default function App() {
       p.map((g) => (g.id === id ? { ...g, expanded: !g.expanded } : g))
     );
   const togglePin = (id) =>
-    setGames((p) =>
-      p.map((g) => (g.id === id ? { ...g, pinned: !g.pinned } : g))
-    );
+    setGames((p) => {
+      const updated = p.map((g) => (g.id === id ? { ...g, pinned: !g.pinned } : g));
+      savePinnedIds(updated);
+      return updated;
+    });
   const toggleFeed = (id) =>
     setGames((p) =>
       p.map((g) => (g.id === id ? { ...g, feedExpanded: !g.feedExpanded } : g))
@@ -1894,16 +1911,17 @@ export default function App() {
     );
   const addGame = useCallback(
     (game) =>
-      setGames((p) => [
-        ...p,
-        {
-          ...game,
-          pinned: true,
-          expanded: false,
-          feedExpanded: false,
-          completed: false,
-        },
-      ]),
+      setGames((p) => {
+        // Default new games to pinned=true unless the user previously unpinned this exact game
+        const savedPins = loadPinnedIds();
+        // If the game ID has been seen before it will be in the set only if it was pinned;
+        // for a brand-new game (never stored) we also default to true.
+        const pinned = savedPins.size === 0 || savedPins.has(game.id) ? true : false;
+        return [
+          ...p,
+          { ...game, pinned, expanded: false, feedExpanded: false, completed: false },
+        ];
+      }),
     []
   );
   const saveAlert = (id, alert) => {
