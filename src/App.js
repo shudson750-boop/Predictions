@@ -249,11 +249,16 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
         deduped.push(m);
       }
     }
-    // Sort by expected game time (soonest first)
+    // Sort by expected game end time ascending (proxy for start time).
+    // Tiebreak on open_time: markets for earlier games open earlier.
     deduped.sort((a, b) => {
-      const ta = a.expected_expiration_time ? new Date(a.expected_expiration_time) : Infinity;
-      const tb = b.expected_expiration_time ? new Date(b.expected_expiration_time) : Infinity;
-      return ta - tb;
+      const FAR = new Date(8640000000000000);
+      const ta = a.expected_expiration_time ? new Date(a.expected_expiration_time) : FAR;
+      const tb = b.expected_expiration_time ? new Date(b.expected_expiration_time) : FAR;
+      if (ta - tb !== 0) return ta - tb;
+      const oa = a.open_time ? new Date(a.open_time) : FAR;
+      const ob = b.open_time ? new Date(b.open_time) : FAR;
+      return oa - ob;
     });
 
     return deduped;
