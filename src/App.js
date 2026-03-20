@@ -1143,8 +1143,13 @@ function GameWidget({
 
         {(() => {
           const parseScore = (line) => line?.match(/\d+$/)?.[0] ?? "—";
-          const leftScore  = parseScore(game.swapped ? game.homeLine : game.awayLine);
-          const rightScore = parseScore(game.swapped ? game.awayLine : game.homeLine);
+          const parseAbbr  = (line, fallback) => line?.split(" - ")?.[0]?.trim() || fallback;
+          const leftLine   = game.swapped ? game.homeLine : game.awayLine;
+          const rightLine  = game.swapped ? game.awayLine : game.homeLine;
+          const leftScore  = parseScore(leftLine);
+          const rightScore = parseScore(rightLine);
+          const aAbbr      = parseAbbr(leftLine, aName);
+          const bAbbr      = parseAbbr(rightLine, bName);
           const aHex = getTeamColor(aName);
           const bHex = getTeamColor(bName);
 
@@ -1162,8 +1167,8 @@ function GameWidget({
               {/* Team A — name+score LEFT, stats RIGHT */}
               <div style={boxBase(aHex)}>
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: "1.55rem", fontWeight: 800, color: "#000000", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{aName}</span>
-                  <span style={{ fontWeight: 800, fontSize: "1.55rem", color: "#000000", lineHeight: 1.1, marginTop: 2 }}>{leftScore}</span>
+                  <span style={{ fontSize: "1.15rem", fontWeight: 800, color: "#000000", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{aAbbr}</span>
+                  <span style={{ fontWeight: 800, fontSize: "1.15rem", color: "#000000", lineHeight: 1.1, marginTop: 2 }}>{leftScore}</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ color: aHex, fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1 }}>{pct(aProb)}</span>
@@ -1188,8 +1193,8 @@ function GameWidget({
                   <span style={{ fontSize: "0.62rem", color: T.textMuted, marginTop: 1, alignSelf: "flex-end" }}>Current: {toAmerican(bProb)}</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: "1.55rem", fontWeight: 800, color: "#000000", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bName}</span>
-                  <span style={{ fontWeight: 800, fontSize: "1.55rem", color: "#000000", lineHeight: 1.1, marginTop: 2 }}>{rightScore}</span>
+                  <span style={{ fontSize: "1.15rem", fontWeight: 800, color: "#000000", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bAbbr}</span>
+                  <span style={{ fontWeight: 800, fontSize: "1.15rem", color: "#000000", lineHeight: 1.1, marginTop: 2 }}>{rightScore}</span>
                 </div>
               </div>
 
