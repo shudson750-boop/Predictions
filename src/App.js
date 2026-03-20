@@ -363,6 +363,7 @@ function kalshiMarketToGame(market) {
     plays: ["Live play-by-play will appear here as the game progresses"],
     isLive: true,
     ouLine: null,
+    openOuLine: null,   // frozen on first ESPN value — never updated after set
     currentTotal: 0,
   };
 }
@@ -477,9 +478,10 @@ function extractESPNInfo(event, sport = "") {
   const awayLine = awayAbbr ? `${awayAbbr} - ${hasScores ? awayScore : "—"}` : null;
   const homeLine = homeAbbr ? `${homeAbbr} - ${hasScores ? homeScore : "—"}` : null;
 
-  // ESPN returns times in ET (e.g. "7:30 PM ET"). Convert to CT (-1h), format as "THU 3/19 · 7:30".
+  // ESPN returns times in ET (e.g. "7:30 PM ET", "7:30 PM EDT", "7:30 PM EST").
+  // Match all Eastern variants, convert to CT (-1h), format as "THU 3/19 · 7:30".
   const rawClock = event.status?.type?.shortDetail || "—";
-  const etMatch = rawClock.match(/^(\d+):(\d+)\s*(AM|PM)\s*ET$/i);
+  const etMatch = rawClock.match(/^(\d+):(\d+)\s*(AM|PM)\s*E[SD]?T$/i);
   let clock = rawClock;
   if (etMatch) {
     let h = parseInt(etMatch[1], 10);
@@ -498,8 +500,8 @@ function extractESPNInfo(event, sport = "") {
     const dy  = eventDate.getDate();
     clock = `${dow} ${mo}/${dy} · ${timeStr}`;
   } else {
-    // Strip trailing timezone label from live/final clocks
-    clock = rawClock.replace(/\s+[A-Z]{2,4}$/, "");
+    // Strip trailing timezone label from live/final clocks (e.g. "Q3 4:22 ET")
+    clock = rawClock.replace(/\s+E[SD]?T$/i, "").replace(/\s+[A-Z]{2,4}$/, "");
   }
 
   const odds  = comp.odds?.[0];
@@ -1187,25 +1189,25 @@ function GameWidget({
                 border: `1px solid ${T.badgeBorder}`,
                 borderRadius: 4,
                 padding: "1px 7px",
-                color: game.ouLine ? T.textSecond : T.textFaint,
+                color: game.openOuLine ? T.textSecond : T.textFaint,
                 fontWeight: 600,
               }}
             >
-              {game.ouLine || "—"}
+              {game.openOuLine || "—"}
             </span>
-            {game.ouLine && game.currentTotal > 0 && (
+            {game.openOuLine && game.currentTotal > 0 && (
               <span style={{ color: T.textMuted }}>
                 {game.currentTotal} pts ·{" "}
                 <span
                   style={{
                     color:
-                      game.currentTotal > parseFloat(game.ouLine)
+                      game.currentTotal > parseFloat(game.openOuLine)
                         ? T.alert
                         : T.teamA,
                     fontWeight: 600,
                   }}
                 >
-                  {game.currentTotal > parseFloat(game.ouLine)
+                  {game.currentTotal > parseFloat(game.openOuLine)
                     ? "↑ Over"
                     : "↓ Under"}
                 </span>
@@ -1760,7 +1762,18 @@ export default function App() {
             const ev   = matchESPNEvent(events, g.teamA, g.teamB);
             const info = extractESPNInfo(ev, g.sport);
             if (!info) return g;
-            return { ...g, score: info.score, awayLine: info.awayLine, homeLine: info.homeLine, clock: info.clock, ouLine: info.ouLine, currentTotal: info.currentTotal, gameSeconds: info.gameSeconds };
+            return {
+              ...g,
+              score: info.score,
+              awayLine: info.awayLine,
+              homeLine: info.homeLine,
+              clock: info.clock,
+              ouLine: info.ouLine,
+              // openOuLine is set once on first non-null value and never updated again
+              openOuLine: g.openOuLine ?? info.ouLine,
+              currentTotal: info.currentTotal,
+              gameSeconds: info.gameSeconds,
+            };
           })
         );
       }
