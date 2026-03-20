@@ -364,7 +364,8 @@ function kalshiMarketToGame(market) {
     isLive: true,
     ouLine: null,
     openOuLine: null,   // frozen on first ESPN value — never updated after set
-    manualOuLine: null, // user-entered O/U override — takes priority over openOuLine
+    manualOuLine: null,  // user-entered O/U override — takes priority over openOuLine
+    manualOuLine2: null, // optional second O/U comparison line
     currentTotal: 0,
     ouHistory: [],      // { t: gameSeconds, total: currentTotal } snapshots
   };
@@ -981,6 +982,7 @@ function GameWidget({
   onToggleFeed,
   onSwap,
   onSetOuLine,
+  onSetOuLine2,
 }) {
   // Apply swap flag: YES side always stays tied to kalshi.yes/teamA internally;
   // Swap only re-labels the teams (name + color). Probabilities stay in their
@@ -998,6 +1000,8 @@ function GameWidget({
   const [calcs, setCalcs] = useState([{ id: 1 }]);
   const [ouExpanded, setOuExpanded] = useState(false);
   const [ouInput, setOuInput] = useState(game.manualOuLine || "");
+  const [ouInput2, setOuInput2] = useState(game.manualOuLine2 || "");
+  const [showOuLine2, setShowOuLine2] = useState(!!game.manualOuLine2);
   const calcIdRef = useRef(2);
   const dupCalc = (id) => {
     const n = calcIdRef.current++;
@@ -1374,37 +1378,58 @@ function GameWidget({
               const GOLD = "#F59E0B";
               const HIST_DOT = "#14532d";
 
-              // O/U input — shown at top of section so user can set/override at any time
+              const LINE2_COLOR = "#60a5fa";
+              // O/U input row — primary line + optional second comparison line
               const inputRow = (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600, whiteSpace: "nowrap" }}>O/U Line:</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    placeholder={game.openOuLine || "e.g. 152.5"}
-                    value={ouInput}
-                    onChange={(e) => setOuInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") { onSetOuLine(game.id, e.target.value); e.target.blur(); }
-                      if (e.key === "Escape") { setOuInput(game.manualOuLine || ""); e.target.blur(); }
-                    }}
-                    onBlur={(e) => onSetOuLine(game.id, e.target.value)}
-                    style={{
-                      width: 90,
-                      padding: "3px 7px",
-                      borderRadius: 5,
-                      border: `1px solid ${T.inputBorder}`,
-                      background: T.inputBg,
-                      color: T.textPrimary,
-                      fontSize: "0.78rem",
-                      fontWeight: 600,
-                    }}
-                  />
-                  {game.manualOuLine && (
-                    <span style={{ fontSize: "0.65rem", color: GOLD, fontWeight: 600 }}>✎ manual</span>
-                  )}
-                  {game.openOuLine && !game.manualOuLine && (
-                    <span style={{ fontSize: "0.65rem", color: T.textFaint }}>ESPN</span>
+                <div style={{ marginBottom: 10 }}>
+                  {/* Primary O/U */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: showOuLine2 ? 6 : 0 }}>
+                    <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600, whiteSpace: "nowrap" }}>O/U Line:</span>
+                    <input
+                      type="number" step="0.5"
+                      placeholder={game.openOuLine || "e.g. 152.5"}
+                      value={ouInput}
+                      onChange={(e) => setOuInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { onSetOuLine(game.id, e.target.value); e.target.blur(); }
+                        if (e.key === "Escape") { setOuInput(game.manualOuLine || ""); e.target.blur(); }
+                      }}
+                      onBlur={(e) => onSetOuLine(game.id, e.target.value)}
+                      style={{ width: 90, padding: "3px 7px", borderRadius: 5, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.textPrimary, fontSize: "0.78rem", fontWeight: 600 }}
+                    />
+                    {game.manualOuLine && <span style={{ fontSize: "0.65rem", color: GOLD, fontWeight: 600 }}>✎ manual</span>}
+                    {game.openOuLine && !game.manualOuLine && <span style={{ fontSize: "0.65rem", color: T.textFaint }}>ESPN</span>}
+                    {/* Add second line button */}
+                    {!showOuLine2 && (
+                      <button
+                        onClick={() => setShowOuLine2(true)}
+                        title="Add comparison O/U line"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: T.textSecond, fontSize: "1.2rem", fontWeight: 700, lineHeight: 1, padding: "0 2px" }}
+                      >+</button>
+                    )}
+                  </div>
+                  {/* Secondary O/U comparison */}
+                  {showOuLine2 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: "0.68rem", color: LINE2_COLOR, fontWeight: 600, whiteSpace: "nowrap" }}>Compare:</span>
+                      <input
+                        type="number" step="0.5"
+                        placeholder="e.g. 158.0"
+                        value={ouInput2}
+                        onChange={(e) => setOuInput2(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { onSetOuLine2(game.id, e.target.value); e.target.blur(); }
+                          if (e.key === "Escape") { setOuInput2(game.manualOuLine2 || ""); e.target.blur(); }
+                        }}
+                        onBlur={(e) => onSetOuLine2(game.id, e.target.value)}
+                        style={{ width: 90, padding: "3px 7px", borderRadius: 5, border: `1px solid ${LINE2_COLOR}`, background: T.inputBg, color: T.textPrimary, fontSize: "0.78rem", fontWeight: 600 }}
+                      />
+                      <button
+                        onClick={() => { setShowOuLine2(false); setOuInput2(""); onSetOuLine2(game.id, ""); }}
+                        title="Remove comparison line"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: T.textFaint, fontSize: "0.75rem", padding: "0 2px" }}
+                      >✕</button>
+                    </div>
                   )}
                 </div>
               );
@@ -1424,21 +1449,27 @@ function GameWidget({
               const q1X = totalSecs / 4;
               const q3X = 3 * totalSecs / 4;
               const n = game.ouHistory.length;
+              const ou2 = game.manualOuLine2 ? parseFloat(game.manualOuLine2) : null;
               const seenT = new Set();
               const ouChartData = [
-                { t: 0, trend: 0 },
+                { t: 0, trend: 0, ...(ou2 != null ? { trend2: 0 } : {}) },
                 ...game.ouHistory.map((h, i) => ({
                   t: h.t,
                   total: h.total,
                   isLast: i === n - 1,
                   trend: +(h.t / totalSecs * openOu).toFixed(1),
+                  ...(ou2 != null ? { trend2: +(h.t / totalSecs * ou2).toFixed(1) } : {}),
                 })),
-                { t: totalSecs, trend: openOu },
+                { t: totalSecs, trend: openOu, ...(ou2 != null ? { trend2: ou2 } : {}) },
               ]
                 .sort((a, b) => a.t - b.t)
                 .filter((p) => { if (seenT.has(p.t)) return false; seenT.add(p.t); return true; });
               const latestScore = n > 0 ? game.ouHistory[n - 1].total : 0;
-              const yMax = Math.max(openOu * 1.15, latestScore > 0 ? latestScore * 1.1 : openOu * 1.15);
+              const yMax = Math.max(
+                openOu * 1.15,
+                ou2 != null ? ou2 * 1.15 : 0,
+                latestScore > 0 ? latestScore * 1.1 : 0
+              ) || openOu * 1.15;
               return (
                 <>
                   {inputRow}
@@ -1462,6 +1493,10 @@ function GameWidget({
                         label={{ value: effectiveOuLine, position: "right", fontSize: 9, fill: GOLD, fontWeight: 700 }}
                       />
                       <Line type="linear" dataKey="trend" stroke={GOLD} strokeWidth={1.5} strokeDasharray="5 3" dot={false} isAnimationActive={false} activeDot={false} />
+                      {ou2 != null && <>
+                        <ReferenceLine y={ou2} stroke="transparent" label={{ value: game.manualOuLine2, position: "right", fontSize: 9, fill: LINE2_COLOR, fontWeight: 700 }} />
+                        <Line type="linear" dataKey="trend2" stroke={LINE2_COLOR} strokeWidth={1.5} strokeDasharray="3 2" dot={false} isAnimationActive={false} activeDot={false} />
+                      </>}
                       <Line type="linear" dataKey="total" stroke="none" strokeWidth={0} isAnimationActive={false} connectNulls={false}
                         dot={(props) => {
                           const { cx, cy, payload, index } = props;
@@ -2008,6 +2043,10 @@ export default function App() {
     setGames((p) =>
       p.map((g) => (g.id === id ? { ...g, manualOuLine: val || null } : g))
     );
+  const setGameOuLine2 = (id, val) =>
+    setGames((p) =>
+      p.map((g) => (g.id === id ? { ...g, manualOuLine2: val || null } : g))
+    );
   const swapGame = (id) =>
     setGames((p) =>
       p.map((g) => {
@@ -2057,7 +2096,7 @@ export default function App() {
 
   const gridStyle = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))",
     gap: 10,
     alignItems: "start",
   };
@@ -2253,6 +2292,7 @@ export default function App() {
                     onToggleFeed={toggleFeed}
                     onSwap={swapGame}
                     onSetOuLine={setGameOuLine}
+                    onSetOuLine2={setGameOuLine2}
                   />
                 ))}
               </div>
