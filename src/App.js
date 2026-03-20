@@ -1148,44 +1148,29 @@ function GameWidget({
           const aHex = getTeamColor(aName);
           const bHex = getTeamColor(bName);
 
-          const TeamBox = ({ name, score, prob, openProb, hex }) => (
-            <div style={{
-              flex: 1,
-              background: hexToRgba(hex, 0.10),
-              border: `1px solid ${hexToRgba(hex, 0.28)}`,
-              borderRadius: 7,
-              padding: "8px 10px",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              minWidth: 0,
-            }}>
-              {/* Team name — left */}
-              <div style={{ fontSize: "0.66rem", fontWeight: 700, color: T.textMuted, flexShrink: 0, maxWidth: 64, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {name}
-              </div>
-              {/* Score — centered */}
-              <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: "1.55rem", color: T.textPrimary, lineHeight: 1 }}>
-                {score}
-              </div>
-              {/* Stats — right: live %, open %, current odds */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
-                <span style={{ color: hex, fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1 }}>
-                  {pct(prob)}
-                </span>
-                <span style={{ fontSize: "0.68rem", color: T.textFaint, marginTop: 2 }}>
-                  Open: {pct(openProb)}
-                </span>
-                <span style={{ fontSize: "0.62rem", color: T.textMuted, marginTop: 1, alignSelf: "flex-start" }}>
-                  Current: {toAmerican(prob)}
-                </span>
-              </div>
-            </div>
-          );
+          const boxBase = (hex) => ({
+            flex: 1, minWidth: 0,
+            background: hexToRgba(hex, 0.10),
+            border: `1px solid ${hexToRgba(hex, 0.28)}`,
+            borderRadius: 7, padding: "8px 10px",
+            display: "flex", alignItems: "stretch", gap: 8,
+          });
 
           return (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <TeamBox name={aName} score={leftScore}  prob={aProb} openProb={aOpen} hex={aHex} />
+
+              {/* Team A — name+score LEFT, stats RIGHT */}
+              <div style={boxBase(aHex)}>
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: "0.66rem", fontWeight: 700, color: T.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{aName}</span>
+                  <span style={{ fontWeight: 800, fontSize: "1.55rem", color: T.textPrimary, lineHeight: 1.1, marginTop: 2 }}>{leftScore}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ color: aHex, fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1 }}>{pct(aProb)}</span>
+                  <span style={{ fontSize: "0.68rem", color: T.textFaint, marginTop: 2 }}>Open: {pct(aOpen)}</span>
+                  <span style={{ fontSize: "0.62rem", color: T.textMuted, marginTop: 1, alignSelf: "flex-start" }}>Current: {toAmerican(aProb)}</span>
+                </div>
+              </div>
 
               {/* Center: vs + clock */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -1195,7 +1180,19 @@ function GameWidget({
                 </span>
               </div>
 
-              <TeamBox name={bName} score={rightScore} prob={bProb} openProb={bOpen} hex={bHex} />
+              {/* Team B — stats LEFT, name+score RIGHT (mirror of A) */}
+              <div style={boxBase(bHex)}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ color: bHex, fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1 }}>{pct(bProb)}</span>
+                  <span style={{ fontSize: "0.68rem", color: T.textFaint, marginTop: 2 }}>Open: {pct(bOpen)}</span>
+                  <span style={{ fontSize: "0.62rem", color: T.textMuted, marginTop: 1, alignSelf: "flex-end" }}>Current: {toAmerican(bProb)}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-end", flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: "0.66rem", fontWeight: 700, color: T.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bName}</span>
+                  <span style={{ fontWeight: 800, fontSize: "1.55rem", color: T.textPrimary, lineHeight: 1.1, marginTop: 2 }}>{rightScore}</span>
+                </div>
+              </div>
+
             </div>
           );
         })()}
