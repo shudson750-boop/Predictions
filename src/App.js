@@ -168,10 +168,15 @@ function hexToRgba(hex, alpha) {
 // ─── KALSHI API ───────────────────────────────────────────────────────────────
 // Your API key is stored in CodeSandbox environment variables as REACT_APP_KALSHI_API_KEY
 const KALSHI_KEY = process.env.REACT_APP_KALSHI_API_KEY || "";
-const KALSHI_BASE = "https://trading-api.kalshi.com/trade-api/v2";
 
-// Sports series prefixes we care about
-const SPORTS_SERIES = ["KXNBAGAME", "KXNFLGAME", "KXNHLGAME", "KXNCAAMBGAME", "KXNCAAFBGAME"];
+// Sports series prefixes — only NCAAB active; others preserved but commented out
+const SPORTS_SERIES = [
+  // "KXNBAGAME",
+  // "KXNFLGAME",
+  // "KXNHLGAME",
+  "KXNCAAMBGAME",
+  // "KXNCAAFBGAME",
+];
 
 async function kalshiRequest(path) {
   // Route through our Vercel proxy instead of calling Kalshi directly
@@ -215,12 +220,12 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
               : null;
             if (!expTime) return true;
             if (liveOnly) {
-              // Live Now: all games expected to end today (or already ended in last 4h)
-              const todayEnd = new Date(now);
-              todayEnd.setHours(23, 59, 59, 999);
+              // Live Now: game currently in progress.
+              // expected_expiration_time ≈ game end, so a live game expires between
+              // 1h ago (running long / just finished) and 2.5h from now (in progress).
               return (
-                expTime >= new Date(now.getTime() - 4 * 3600 * 1000) &&
-                expTime <= todayEnd
+                expTime >= new Date(now.getTime() - 1 * 3600 * 1000) &&
+                expTime <= new Date(now.getTime() + 2.5 * 3600 * 1000)
               );
             } else {
               // Show games expected within the next 7 days
@@ -514,54 +519,6 @@ function breakEven(american) {
   return null;
 }
 
-// ─── SEED DATA (fallback when API unavailable) ────────────────────────────────
-let _id = 1;
-function makePlays(teamA, teamB) {
-  return [
-    `Q1 11:42 — ${teamA}: 3-pointer (+3)`,
-    `Q1 10:15 — ${teamB}: Layup (+2)`,
-    `Q1 8:30 — ${teamA}: Free throws (+2)`,
-    `Q2 9:33 — ${teamA}: Layup (+2)`,
-    `Q2 7:10 — ${teamB}: Free throw (+1)`,
-    `Q3 7:42 — ${teamA}: 3-pointer (+3)`,
-    `Q3 5:20 — ${teamB}: Fast break layup (+2)`,
-    `Q3 4:22 — ${teamA}: Free throws (+2)`,
-  ];
-}
-
-function makeGame(overrides = {}) {
-  const teamA = overrides.title ? overrides.title.split(" vs ")[0] : "Team A";
-  const teamB = overrides.title ? overrides.title.split(" vs ")[1] : "Team B";
-  const kalshiYes = +(Math.random() * 0.55 + 0.22).toFixed(3);
-  return {
-    id: `game-${_id++}`,
-    sport: "🏀 NBA",
-    title: "Team A vs Team B",
-    teamA,
-    teamB,
-    subtitle: "Live",
-    score: "56–51",
-    clock: "Q3 4:22",
-    pinned: false,
-    expanded: false,
-    feedExpanded: false,
-    completed: false,
-    alert: null,
-    alertTriggered: false,
-    openKalshi: kalshiYes,
-    kalshi: { yes: kalshiYes, no: +(1 - kalshiYes).toFixed(3) },
-    history: Array.from({ length: 24 }, (_, i) => ({
-      t: i,
-      teamA: +(kalshiYes + (Math.random() * 0.12 - 0.06)).toFixed(3),
-      teamB: +(1 - kalshiYes + (Math.random() * 0.12 - 0.06)).toFixed(3),
-    })),
-    plays: makePlays(teamA, teamB),
-    isLive: false,
-    ...overrides,
-    teamA,
-    teamB,
-  };
-}
 
 // ─── KELLY CALCULATOR ─────────────────────────────────────────────────────────
 function KellyCalc({ teamA, teamB, teamAProb, teamBProb, openKalshiA, openKalshiB, onDuplicate, onRemove, isOnly }) {
