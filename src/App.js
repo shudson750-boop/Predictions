@@ -364,6 +364,7 @@ function kalshiMarketToGame(market) {
     isLive: true,
     ouLine: null,
     openOuLine: null,   // frozen on first ESPN value — never updated after set
+    manualOuLine: null, // user-entered O/U override — takes priority over openOuLine
     currentTotal: 0,
     ouHistory: [],      // { t: gameSeconds, total: currentTotal } snapshots
   };
@@ -979,6 +980,7 @@ function GameWidget({
   onSetAlert,
   onToggleFeed,
   onSwap,
+  onSetOuLine,
 }) {
   // Apply swap flag: YES side always stays tied to kalshi.yes/teamA internally;
   // Swap only re-labels the teams (name + color). Probabilities stay in their
@@ -995,6 +997,7 @@ function GameWidget({
     d > 0.005 ? T.teamA : d < -0.005 ? T.alert : T.textFaint;
   const [calcs, setCalcs] = useState([{ id: 1 }]);
   const [ouExpanded, setOuExpanded] = useState(false);
+  const [ouInput, setOuInput] = useState(game.manualOuLine || "");
   const calcIdRef = useRef(2);
   const dupCalc = (id) => {
     const n = calcIdRef.current++;
@@ -1366,14 +1369,56 @@ function GameWidget({
               {ouExpanded ? "▼" : "▶"} {ouExpanded ? "Hide" : "Show"} O/U Tracker
             </button>
             {ouExpanded && (() => {
-              if (!game.openOuLine) return (
-                <div style={{ fontSize: "0.72rem", color: T.textFaint, padding: "8px 2px" }}>
-                  O/U data not available for this game.
-                </div>
-              );
+              // Manual entry takes priority; ESPN value is the fallback
+              const effectiveOuLine = game.manualOuLine || game.openOuLine;
               const GOLD = "#F59E0B";
               const HIST_DOT = "#14532d";
-              const openOu = parseFloat(game.openOuLine) || 0;
+
+              // O/U input — shown at top of section so user can set/override at any time
+              const inputRow = (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600, whiteSpace: "nowrap" }}>O/U Line:</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    placeholder={game.openOuLine || "e.g. 152.5"}
+                    value={ouInput}
+                    onChange={(e) => setOuInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { onSetOuLine(game.id, e.target.value); e.target.blur(); }
+                      if (e.key === "Escape") { setOuInput(game.manualOuLine || ""); e.target.blur(); }
+                    }}
+                    onBlur={(e) => onSetOuLine(game.id, e.target.value)}
+                    style={{
+                      width: 90,
+                      padding: "3px 7px",
+                      borderRadius: 5,
+                      border: `1px solid ${T.inputBorder}`,
+                      background: T.inputBg,
+                      color: T.textPrimary,
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                    }}
+                  />
+                  {game.manualOuLine && (
+                    <span style={{ fontSize: "0.65rem", color: GOLD, fontWeight: 600 }}>✎ manual</span>
+                  )}
+                  {game.openOuLine && !game.manualOuLine && (
+                    <span style={{ fontSize: "0.65rem", color: T.textFaint }}>ESPN</span>
+                  )}
+                </div>
+              );
+
+              if (!effectiveOuLine) return (
+                <div>
+                  {inputRow}
+                  <div style={{ fontSize: "0.72rem", color: T.textFaint, paddingBottom: 6 }}>
+                    Enter the O/U above to see the trend line.
+                  </div>
+                </div>
+              );
+
+              const openOu = parseFloat(effectiveOuLine) || 0;
               const totalSecs = totalGameSecondsForSport(game.sport);
               const htX = totalSecs / 2;
               const q1X = totalSecs / 4;
@@ -1396,6 +1441,7 @@ function GameWidget({
               const yMax = Math.max(openOu * 1.15, latestScore > 0 ? latestScore * 1.1 : openOu * 1.15);
               return (
                 <>
+                  {inputRow}
                   <ResponsiveContainer width="100%" height={110}>
                     <LineChart data={ouChartData} margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
                       <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
@@ -1413,7 +1459,7 @@ function GameWidget({
                       <ReferenceLine
                         y={openOu}
                         stroke="transparent"
-                        label={{ value: game.openOuLine, position: "right", fontSize: 9, fill: GOLD, fontWeight: 700 }}
+                        label={{ value: effectiveOuLine, position: "right", fontSize: 9, fill: GOLD, fontWeight: 700 }}
                       />
                       <Line type="linear" dataKey="trend" stroke={GOLD} strokeWidth={1.5} strokeDasharray="5 3" dot={false} isAnimationActive={false} activeDot={false} />
                       <Line type="linear" dataKey="total" stroke="none" strokeWidth={0} isAnimationActive={false} connectNulls={false}
@@ -1958,6 +2004,10 @@ export default function App() {
       p.map((g) => (g.id === id ? { ...g, feedExpanded: !g.feedExpanded } : g))
     );
   const removeGame = (id) => setGames((p) => p.filter((g) => g.id !== id));
+  const setGameOuLine = (id, val) =>
+    setGames((p) =>
+      p.map((g) => (g.id === id ? { ...g, manualOuLine: val || null } : g))
+    );
   const swapGame = (id) =>
     setGames((p) =>
       p.map((g) => {
@@ -2202,6 +2252,7 @@ export default function App() {
                     onSetAlert={setAlertTarget}
                     onToggleFeed={toggleFeed}
                     onSwap={swapGame}
+                    onSetOuLine={setGameOuLine}
                   />
                 ))}
               </div>
