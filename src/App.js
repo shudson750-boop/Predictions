@@ -1129,112 +1129,82 @@ function GameWidget({
         </div>
       </div>
 
-      {/* Title + score — 3-column spread layout */}
+      {/* Unified header: [Team A box] [vs + clock] [Team B box] */}
       <div
         style={{ cursor: "pointer", marginBottom: 10 }}
         onClick={() => onToggleExpand(game.id)}
       >
-        {/* ▲/▼ toggle hint — top right */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 2 }}>
+        {/* ▲/▼ hint */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 3 }}>
           <span style={{ fontSize: "0.62rem", color: T.textFaint }}>
             {game.expanded ? "▲ less" : "▼ more"}
           </span>
         </div>
 
-        {/* Three-column: Team A | vs + clock | Team B */}
         {(() => {
-          // Strip abbreviation — parse just the score number from "HOF - 59" → "59"
           const parseScore = (line) => line?.match(/\d+$/)?.[0] ?? "—";
           const leftScore  = parseScore(game.swapped ? game.homeLine : game.awayLine);
           const rightScore = parseScore(game.swapped ? game.awayLine : game.homeLine);
-          return (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
-              {/* Left: Team A — right-aligned so text crowds toward the center "vs" */}
-              <div style={{ textAlign: "right", minWidth: 80, maxWidth: 160 }}>
-                <div style={{ fontWeight: 700, fontSize: "1.05rem", color: T.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {aName}
-                </div>
-                <div style={{ fontWeight: 800, fontSize: "1.6rem", color: T.textPrimary, lineHeight: 1.1, marginTop: 2 }}>
-                  {leftScore}
-                </div>
-              </div>
+          const aHex = getTeamColor(aName);
+          const bHex = getTeamColor(bName);
 
-              {/* Center: vs + clock badge */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                <span style={{ fontSize: "0.78rem", color: T.textMuted, fontWeight: 600 }}>vs</span>
-                <span style={{ fontSize: "0.68rem", background: T.badge, color: T.btnPrimary, padding: "2px 7px", borderRadius: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+          const TeamBox = ({ name, score, prob, openProb, hex }) => (
+            <div style={{
+              flex: 1,
+              background: hexToRgba(hex, 0.10),
+              border: `1px solid ${hexToRgba(hex, 0.28)}`,
+              borderRadius: 7,
+              padding: "8px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              minWidth: 0,
+            }}>
+              {/* Team name — left */}
+              <div style={{ fontSize: "0.66rem", fontWeight: 700, color: T.textMuted, flexShrink: 0, maxWidth: 64, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {name}
+              </div>
+              {/* Score — centered */}
+              <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: "1.55rem", color: T.textPrimary, lineHeight: 1 }}>
+                {score}
+              </div>
+              {/* Stats — right: live %, open %, current odds */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+                <span style={{ color: hex, fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1 }}>
+                  {pct(prob)}
+                </span>
+                <span style={{ fontSize: "0.68rem", color: T.textFaint, marginTop: 2 }}>
+                  Open: {pct(openProb)}
+                </span>
+                <span style={{ fontSize: "0.62rem", color: T.textMuted, marginTop: 1, alignSelf: "flex-start" }}>
+                  Current: {toAmerican(prob)}
+                </span>
+              </div>
+            </div>
+          );
+
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <TeamBox name={aName} score={leftScore}  prob={aProb} openProb={aOpen} hex={aHex} />
+
+              {/* Center: vs + clock */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <span style={{ fontSize: "1.05rem", color: T.textMuted, fontWeight: 700 }}>vs</span>
+                <span style={{ fontSize: "0.72rem", background: T.badge, color: T.btnPrimary, padding: "3px 9px", borderRadius: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
                   {game.clock}
                 </span>
               </div>
 
-              {/* Right: Team B — left-aligned so text crowds toward the center "vs" */}
-              <div style={{ textAlign: "left", minWidth: 80, maxWidth: 160 }}>
-                <div style={{ fontWeight: 700, fontSize: "1.05rem", color: T.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {bName}
-                </div>
-                <div style={{ fontWeight: 800, fontSize: "1.6rem", color: T.textPrimary, lineHeight: 1.1, marginTop: 2 }}>
-                  {rightScore}
-                </div>
-              </div>
+              <TeamBox name={bName} score={rightScore} prob={bProb} openProb={bOpen} hex={bHex} />
             </div>
           );
         })()}
 
-        {/* Compact odds — left: team name + opening %; right: live % in team color + odds */}
-        <div style={{ display: "flex", gap: 8 }}>
-          {[
-            { label: aName, prob: aProb, openProb: aOpen, teamHex: getTeamColor(aName) },
-            { label: bName, prob: bProb, openProb: bOpen, teamHex: getTeamColor(bName) },
-          ].map(({ label, prob, openProb, teamHex }) => (
-            <div
-              key={label}
-              style={{
-                background: hexToRgba(teamHex, 0.10),
-                border: `1px solid ${hexToRgba(teamHex, 0.28)}`,
-                borderRadius: 7,
-                padding: "7px 10px",
-                flex: 1,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "stretch",
-              }}
-            >
-              {/* Left: team name + opening prob */}
-              <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 }}>
-                <span style={{ fontSize: "0.65rem", color: T.textMuted, fontWeight: 600, lineHeight: 1.2 }}>
-                  {label}
-                </span>
-                <span style={{ fontSize: "0.6rem", color: T.textFaint }}>
-                  Open: {pct(openProb)}
-                </span>
-              </div>
-              {/* Right: live % + odds */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center" }}>
-                <span style={{ color: teamHex, fontWeight: 800, fontSize: "1.05rem", lineHeight: 1.1 }}>
-                  {pct(prob)}
-                </span>
-                <span style={{ fontSize: "0.68rem", color: T.textMuted, marginTop: 1 }}>
-                  {toAmerican(prob)}
-                </span>
-              </div>
-            </div>
-          ))}
-          {game.alertTriggered && (
-            <div
-              style={{
-                alignSelf: "center",
-                fontSize: "0.71rem",
-                color: T.alert,
-                background: "#fff0ee",
-                border: `1px solid ${T.alert}44`,
-                borderRadius: 6,
-                padding: "5px 9px",
-              }}
-            >
-              🚨 Alert hit
-            </div>
-          )}
-        </div>
+        {game.alertTriggered && (
+          <div style={{ marginTop: 6, fontSize: "0.71rem", color: T.alert, background: "#fff0ee", border: `1px solid ${T.alert}44`, borderRadius: 6, padding: "4px 9px", display: "inline-block" }}>
+            🚨 Alert hit
+          </div>
+        )}
       </div>
 
       {/* Expanded detail */}
