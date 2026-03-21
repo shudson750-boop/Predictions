@@ -1330,7 +1330,7 @@ function GameWidget({
                 padding: "4px 0",
               }}
             >
-              {ouExpanded ? "▼" : "▶"} {ouExpanded ? "Hide" : "Show"} O/U Tracker
+              {ouExpanded ? "▼" : "▶"} {ouExpanded ? "Hide" : "Show"} O/U
             </button>
             {ouExpanded && (() => {
               // Manual entry takes priority; ESPN value is the fallback
@@ -1341,65 +1341,68 @@ function GameWidget({
               const LINE2_COLOR = "#60a5fa";
               // O/U input row — primary line + optional second comparison line
               const inputRow = (
-                <div style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {/* Primary O/U */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: showOuLine2 ? 6 : 0 }}>
-                    <span style={{ fontSize: "0.68rem", color: T.textMuted, fontWeight: 600, whiteSpace: "nowrap" }}>O/U Line:</span>
-                    <input
-                      type="number" step="0.5"
-                      placeholder={game.openOuLine || "e.g. 152.5"}
-                      value={ouInput}
-                      onChange={(e) => setOuInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") { onSetOuLine(game.id, e.target.value); e.target.blur(); }
-                        if (e.key === "Escape") { setOuInput(game.manualOuLine || ""); e.target.blur(); }
-                      }}
-                      onBlur={(e) => onSetOuLine(game.id, e.target.value)}
-                      style={{ width: 90, padding: "3px 7px", borderRadius: 5, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.textPrimary, fontSize: "0.78rem", fontWeight: 600 }}
-                    />
-                    {game.manualOuLine && <span style={{ fontSize: "0.65rem", color: GOLD, fontWeight: 600 }}>✎ manual</span>}
-                    {game.openOuLine && !game.manualOuLine && <span style={{ fontSize: "0.65rem", color: T.textFaint }}>ESPN</span>}
-                    {/* Add second line button */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <span style={{ fontSize: "0.8rem", color: T.textMuted, fontWeight: 600 }}>O/U Line</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input
+                        type="number" step="0.5"
+                        placeholder={game.openOuLine || "e.g. 152.5"}
+                        value={ouInput}
+                        onChange={(e) => setOuInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { onSetOuLine(game.id, e.target.value); e.target.blur(); }
+                          if (e.key === "Escape") { setOuInput(game.manualOuLine || ""); e.target.blur(); }
+                        }}
+                        onBlur={(e) => onSetOuLine(game.id, e.target.value)}
+                        style={{ width: "100%", padding: "5px 9px", borderRadius: 5, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.textPrimary, fontSize: "0.9rem", fontWeight: 600 }}
+                      />
+                    </div>
+                    {game.manualOuLine && <span style={{ fontSize: "0.72rem", color: GOLD, fontWeight: 600 }}>✎ manual</span>}
+                    {game.openOuLine && !game.manualOuLine && <span style={{ fontSize: "0.72rem", color: T.textFaint }}>ESPN</span>}
                     {!showOuLine2 && (
                       <button
                         onClick={() => setShowOuLine2(true)}
                         title="Add comparison O/U line"
-                        style={{ background: "none", border: "none", cursor: "pointer", color: T.textSecond, fontSize: "1.2rem", fontWeight: 700, lineHeight: 1, padding: "0 2px" }}
-                      >+</button>
+                        style={{ background: "none", border: "none", cursor: "pointer", color: T.textSecond, fontSize: "0.8rem", fontWeight: 700, padding: "0", textAlign: "left" }}
+                      >+ Add compare</button>
                     )}
                   </div>
                   {/* Secondary O/U comparison */}
                   {showOuLine2 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: "0.68rem", color: LINE2_COLOR, fontWeight: 600, whiteSpace: "nowrap" }}>Compare:</span>
-                      <input
-                        type="number" step="0.5"
-                        placeholder="e.g. 158.0"
-                        value={ouInput2}
-                        onChange={(e) => setOuInput2(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") { onSetOuLine2(game.id, e.target.value); e.target.blur(); }
-                          if (e.key === "Escape") { setOuInput2(game.manualOuLine2 || ""); e.target.blur(); }
-                        }}
-                        onBlur={(e) => onSetOuLine2(game.id, e.target.value)}
-                        style={{ width: 90, padding: "3px 7px", borderRadius: 5, border: `1px solid ${LINE2_COLOR}`, background: T.inputBg, color: T.textPrimary, fontSize: "0.78rem", fontWeight: 600 }}
-                      />
-                      <button
-                        onClick={() => { setShowOuLine2(false); setOuInput2(""); onSetOuLine2(game.id, ""); }}
-                        title="Remove comparison line"
-                        style={{ background: "none", border: "none", cursor: "pointer", color: T.textFaint, fontSize: "0.75rem", padding: "0 2px" }}
-                      >✕</button>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      <span style={{ fontSize: "0.8rem", color: LINE2_COLOR, fontWeight: 600 }}>Compare</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input
+                          type="number" step="0.5"
+                          placeholder="e.g. 158.0"
+                          value={ouInput2}
+                          onChange={(e) => setOuInput2(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") { onSetOuLine2(game.id, e.target.value); e.target.blur(); }
+                            if (e.key === "Escape") { setOuInput2(game.manualOuLine2 || ""); e.target.blur(); }
+                          }}
+                          onBlur={(e) => onSetOuLine2(game.id, e.target.value)}
+                          style={{ width: "100%", padding: "5px 9px", borderRadius: 5, border: `1px solid ${LINE2_COLOR}`, background: T.inputBg, color: T.textPrimary, fontSize: "0.9rem", fontWeight: 600 }}
+                        />
+                        <button
+                          onClick={() => { setShowOuLine2(false); setOuInput2(""); onSetOuLine2(game.id, ""); }}
+                          title="Remove comparison line"
+                          style={{ background: "none", border: "none", cursor: "pointer", color: T.textFaint, fontSize: "0.85rem", padding: "0 2px", flexShrink: 0 }}
+                        >✕</button>
+                      </div>
                     </div>
                   )}
                 </div>
               );
 
               if (!effectiveOuLine) return (
-                <div>
-                  {inputRow}
-                  <div style={{ fontSize: "0.72rem", color: T.textFaint, paddingBottom: 6 }}>
+                <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginTop: 8 }}>
+                  <div style={{ flex: 3, fontSize: "0.72rem", color: T.textFaint, paddingTop: 4 }}>
                     Enter the O/U above to see the trend line.
                   </div>
+                  <div style={{ flex: 1 }}>{inputRow}</div>
                 </div>
               );
 
@@ -1431,54 +1434,58 @@ function GameWidget({
                 latestScore > 0 ? latestScore * 1.1 : 0
               ) || openOu * 1.15;
               return (
-                <>
-                  {inputRow}
-                  <ResponsiveContainer width="100%" height={110}>
-                    <LineChart data={ouChartData} margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
-                      <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
-                      <YAxis hide domain={[0, yMax]} />
-                      <Tooltip
-                        formatter={(v, name) => name === "total" ? [`${v} pts`, "Score"] : [`${v}`, "O/U Pace"]}
-                        labelFormatter={() => ""}
-                        contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
-                      />
-                      <ReferenceLine x={0} stroke={T.textMuted} strokeWidth={1} />
-                      <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
-                      <ReferenceLine x={htX} stroke={T.textFaint} strokeWidth={1.5} />
-                      <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
-                      <ReferenceLine x={totalSecs} stroke={T.textMuted} strokeWidth={1} />
-                      <ReferenceLine
-                        y={openOu}
-                        stroke="transparent"
-                        label={{ value: effectiveOuLine, position: "right", fontSize: 9, fill: GOLD, fontWeight: 700 }}
-                      />
-                      <Line type="linear" dataKey="trend" stroke={GOLD} strokeWidth={1.5} strokeDasharray="5 3" dot={false} isAnimationActive={false} activeDot={false} />
-                      {ou2 != null && <>
-                        <ReferenceLine y={ou2} stroke="transparent" label={{ value: game.manualOuLine2, position: "right", fontSize: 9, fill: LINE2_COLOR, fontWeight: 700 }} />
-                        <Line type="linear" dataKey="trend2" stroke={LINE2_COLOR} strokeWidth={1.5} strokeDasharray="3 2" dot={false} isAnimationActive={false} activeDot={false} />
-                      </>}
-                      <Line type="linear" dataKey="total" stroke="none" strokeWidth={0} isAnimationActive={false} connectNulls={false}
-                        dot={(props) => {
-                          const { cx, cy, payload, index } = props;
-                          if (payload.total == null) return <g key={`ou-${index}`} />;
-                          if (payload.isLast) return (
-                            <g key={`ou-${index}`}>
-                              <circle cx={cx} cy={cy} r={5} fill={GOLD} />
-                              <circle cx={cx} cy={cy} r={9} fill="none" stroke={GOLD} strokeWidth={1.5} strokeOpacity={0.5} />
-                            </g>
-                          );
-                          return <circle key={`ou-${index}`} cx={cx} cy={cy} r={2.5} fill={HIST_DOT} fillOpacity={0.85} />;
-                        }}
-                        activeDot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.62rem", color: T.textFaint, marginTop: 2, paddingLeft: 4, paddingRight: 4 }}>
-                    <span>◄ Game Start</span>
-                    <span>Halftime</span>
-                    <span>Game End ►</span>
+                <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginTop: 8 }}>
+                  {/* Chart — 75% width */}
+                  <div style={{ flex: 3, minWidth: 0 }}>
+                    <ResponsiveContainer width="100%" height={165}>
+                      <LineChart data={ouChartData} margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
+                        <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
+                        <YAxis hide domain={[0, yMax]} />
+                        <Tooltip
+                          formatter={(v, name) => name === "total" ? [`${v} pts`, "Score"] : [`${v}`, "O/U Pace"]}
+                          labelFormatter={() => ""}
+                          contentStyle={{ background: T.modalBg, border: `1px solid ${T.modalBorder}`, borderRadius: 6, fontSize: 11, color: T.textPrimary }}
+                        />
+                        <ReferenceLine x={0} stroke={T.textMuted} strokeWidth={1} />
+                        <ReferenceLine x={q1X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                        <ReferenceLine x={htX} stroke={T.textFaint} strokeWidth={1.5} />
+                        <ReferenceLine x={q3X} stroke={T.divider} strokeWidth={1} strokeDasharray="3 3" />
+                        <ReferenceLine x={totalSecs} stroke={T.textMuted} strokeWidth={1} />
+                        <ReferenceLine
+                          y={openOu}
+                          stroke="transparent"
+                          label={{ value: effectiveOuLine, position: "right", fontSize: 9, fill: GOLD, fontWeight: 700 }}
+                        />
+                        <Line type="linear" dataKey="trend" stroke={GOLD} strokeWidth={1.5} strokeDasharray="5 3" dot={false} isAnimationActive={false} activeDot={false} />
+                        {ou2 != null && <>
+                          <ReferenceLine y={ou2} stroke="transparent" label={{ value: game.manualOuLine2, position: "right", fontSize: 9, fill: LINE2_COLOR, fontWeight: 700 }} />
+                          <Line type="linear" dataKey="trend2" stroke={LINE2_COLOR} strokeWidth={1.5} strokeDasharray="3 2" dot={false} isAnimationActive={false} activeDot={false} />
+                        </>}
+                        <Line type="linear" dataKey="total" stroke="none" strokeWidth={0} isAnimationActive={false} connectNulls={false}
+                          dot={(props) => {
+                            const { cx, cy, payload, index } = props;
+                            if (payload.total == null) return <g key={`ou-${index}`} />;
+                            if (payload.isLast) return (
+                              <g key={`ou-${index}`}>
+                                <circle cx={cx} cy={cy} r={5} fill={GOLD} />
+                                <circle cx={cx} cy={cy} r={9} fill="none" stroke={GOLD} strokeWidth={1.5} strokeOpacity={0.5} />
+                              </g>
+                            );
+                            return <circle key={`ou-${index}`} cx={cx} cy={cy} r={2.5} fill={HIST_DOT} fillOpacity={0.85} />;
+                          }}
+                          activeDot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.62rem", color: T.textFaint, marginTop: 2, paddingLeft: 4, paddingRight: 4 }}>
+                      <span>◄ Game Start</span>
+                      <span>Halftime</span>
+                      <span>Game End ►</span>
+                    </div>
                   </div>
-                </>
+                  {/* Inputs — 25% width */}
+                  <div style={{ flex: 1 }}>{inputRow}</div>
+                </div>
               );
             })()}
           </div>
