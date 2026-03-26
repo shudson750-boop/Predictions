@@ -1242,7 +1242,7 @@ function GameWidget({
               const q3X = 3 * totalSecs / 4;
               return (
                 <>
-                  <ResponsiveContainer width="100%" height={110}>
+                  <ResponsiveContainer width="100%" height={165}>
                     {/* history entries use t = actual elapsed game seconds */}
                     <LineChart data={game.history} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
                       <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
@@ -1437,7 +1437,7 @@ function GameWidget({
                 <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginTop: 8 }}>
                   {/* Chart — 75% width */}
                   <div style={{ flex: 3, minWidth: 0 }}>
-                    <ResponsiveContainer width="100%" height={165}>
+                    <ResponsiveContainer width="100%" height={248}>
                       <LineChart data={ouChartData} margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
                         <XAxis dataKey="t" hide type="number" domain={[0, totalSecs]} />
                         <YAxis hide domain={[0, yMax]} />
@@ -2209,24 +2209,6 @@ export default function App() {
 
         {tab === "dashboard" && (
           <div>
-            {/* Minimal top bar — just the add button */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-              <button
-                style={{
-                  background: T.btnPrimary,
-                  border: "none",
-                  color: T.btnPrimaryTxt,
-                  padding: "6px 14px",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                  fontWeight: 600,
-                }}
-                onClick={() => setTab("search")}
-              >
-                + Search Markets
-              </button>
-            </div>
 
             {active.length === 0 && (
               <div style={{ textAlign: "center", padding: "60px 0", color: T.textMuted }}>
