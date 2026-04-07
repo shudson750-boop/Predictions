@@ -169,15 +169,6 @@ function hexToRgba(hex, alpha) {
 // Your API key is stored in CodeSandbox environment variables as REACT_APP_KALSHI_API_KEY
 const KALSHI_KEY = process.env.REACT_APP_KALSHI_API_KEY || "";
 
-// NCAAB championship / tournament series tickers to try
-const SPORTS_SERIES = [
-  "KXNCAAMBCHAMP",
-  "KXNCAABCHAMP",
-  "KXNCAABTOURN",
-  "KXNCAABMM",
-  "KXNCAABTOURNAMENT",
-  "KXNCAAMBGAME",
-];
 
 async function kalshiRequest(path) {
   // Route through our Vercel proxy instead of calling Kalshi directly
@@ -204,30 +195,47 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
         const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
         return expTime >= todayStart && expTime <= todayEnd;
       }
-      // 2 days in the past (catches in-progress games) to 14 days out
       const pastWindow = new Date(now.getTime() - 2 * 24 * 3600 * 1000);
       return expTime >= pastWindow && expTime <= new Date(now.getTime() + 14 * 24 * 3600 * 1000);
     });
 
-    // Series-based search (known sports series)
-    for (const series of SPORTS_SERIES) {
-      let cursor = null;
-      do {
-        let apiPath = `markets?status=open&limit=100&series_ticker=${encodeURIComponent(series)}`;
-        if (cursor) apiPath += `&cursor=${encodeURIComponent(cursor)}`;
-
-        const data = await kalshiRequest(apiPath);
-        if (data && data.markets) {
-          let markets = data.markets;
-          if (query) {
-            markets = markets.filter(
-              (m) => m.title && m.title.toLowerCase().includes(query.toLowerCase())
-            );
-          }
-          results.push(...applyTimeFilter(markets));
+    // Search all open events by title — avoids needing to know the series ticker
+    const matchingEvents = [];
+    let cursor = null;
+    do {
+      let apiPath = `events?status=open&limit=200`;
+      if (cursor) apiPath += `&cursor=${encodeURIComponent(cursor)}`;
+      const data = await kalshiRequest(apiPath);
+      if (data && data.events) {
+        const filtered = query
+          ? data.events.filter((e) => e.title && e.title.toLowerCase().includes(query.toLowerCase()))
+          : data.events;
+        matchingEvents.push(...filtered);
+      }
+      cursor = data?.cursor || null;
+      // Stop after finding matches or after 3 pages to keep it fast
+      if (matchingEvents.length > 0 || !cursor) break;
+      if ((matchingEvents.length === 0) && cursor) {
+        const page2 = await kalshiRequest(`events?status=open&limit=200&cursor=${encodeURIComponent(cursor)}`);
+        if (page2?.events) {
+          const f2 = query
+            ? page2.events.filter((e) => e.title && e.title.toLowerCase().includes(query.toLowerCase()))
+            : page2.events;
+          matchingEvents.push(...f2);
         }
-        cursor = data?.cursor || null;
-      } while (cursor);
+        cursor = page2?.cursor || null;
+        break;
+      }
+    } while (cursor);
+
+    // Fetch markets for each matching event
+    for (const event of matchingEvents) {
+      const ticker = event.event_ticker;
+      if (!ticker) continue;
+      const mData = await kalshiRequest(`markets?event_ticker=${encodeURIComponent(ticker)}&status=open&limit=100`);
+      if (mData && mData.markets) {
+        results.push(...applyTimeFilter(mData.markets));
+      }
     }
 
 
