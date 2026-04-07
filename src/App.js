@@ -195,6 +195,18 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
     const results = [];
     const now = new Date();
 
+    const applyTimeFilter = (markets) => markets.filter((m) => {
+      const expTime = m.expected_expiration_time ? new Date(m.expected_expiration_time) : null;
+      if (!expTime) return true;
+      if (liveOnly) {
+        const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+        const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+        return expTime >= todayStart && expTime <= todayEnd;
+      }
+      return expTime <= new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+    });
+
+    // Series-based search (known sports series)
     for (const series of SPORTS_SERIES) {
       let cursor = null;
       do {
@@ -204,38 +216,30 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
         const data = await kalshiRequest(apiPath);
         if (data && data.markets) {
           let markets = data.markets;
-
-          // Filter by search query if provided
           if (query) {
             markets = markets.filter(
               (m) => m.title && m.title.toLowerCase().includes(query.toLowerCase())
             );
           }
-
-          // Filter by expected_expiration_time (actual game schedule)
-          // Note: close_time is a far-future safety buffer on Kalshi — don't use it
-          markets = markets.filter((m) => {
-            const expTime = m.expected_expiration_time
-              ? new Date(m.expected_expiration_time)
-              : null;
-            if (!expTime) return true;
-            if (liveOnly) {
-              // For Live Now, just restrict to today. ESPN cross-reference (done
-              // in SearchTab) does the real "currently in progress" filtering.
-              const todayEnd = new Date(now);
-              todayEnd.setHours(23, 59, 59, 999);
-              const todayStart = new Date(now);
-              todayStart.setHours(0, 0, 0, 0);
-              return expTime >= todayStart && expTime <= todayEnd;
-            } else {
-              // Show games expected within the next 7 days
-              return expTime <= new Date(now.getTime() + 7 * 24 * 3600 * 1000);
-            }
-          });
-
-          results.push(...markets);
+          results.push(...applyTimeFilter(markets));
         }
         cursor = data?.cursor || null;
+      } while (cursor);
+    }
+
+    // Broad text search — catches tournament/championship games not in known series
+    if (query) {
+      let cursor = null;
+      do {
+        let apiPath = `markets?status=open&limit=100&search=${encodeURIComponent(query)}`;
+        if (cursor) apiPath += `&cursor=${encodeURIComponent(cursor)}`;
+        const data = await kalshiRequest(apiPath);
+        if (data && data.markets) {
+          results.push(...applyTimeFilter(data.markets));
+        }
+        cursor = data?.cursor || null;
+        // Only fetch first page of broad search to keep it fast
+        break;
       } while (cursor);
     }
 
