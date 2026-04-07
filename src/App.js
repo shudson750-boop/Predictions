@@ -169,8 +169,15 @@ function hexToRgba(hex, alpha) {
 // Your API key is stored in CodeSandbox environment variables as REACT_APP_KALSHI_API_KEY
 const KALSHI_KEY = process.env.REACT_APP_KALSHI_API_KEY || "";
 
-// Sports series prefixes — paused while focusing on NCAAB championship only
-const SPORTS_SERIES = [];
+// NCAAB championship / tournament series tickers to try
+const SPORTS_SERIES = [
+  "KXNCAAMBCHAMP",
+  "KXNCAABCHAMP",
+  "KXNCAABTOURN",
+  "KXNCAABMM",
+  "KXNCAABTOURNAMENT",
+  "KXNCAAMBGAME",
+];
 
 async function kalshiRequest(path) {
   // Route through our Vercel proxy instead of calling Kalshi directly
@@ -197,7 +204,9 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
         const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
         return expTime >= todayStart && expTime <= todayEnd;
       }
-      return expTime <= new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+      // 2 days in the past (catches in-progress games) to 14 days out
+      const pastWindow = new Date(now.getTime() - 2 * 24 * 3600 * 1000);
+      return expTime >= pastWindow && expTime <= new Date(now.getTime() + 14 * 24 * 3600 * 1000);
     });
 
     // Series-based search (known sports series)
@@ -221,18 +230,6 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
       } while (cursor);
     }
 
-    // Broad text search — catches championship/tournament games not in known series
-    // Only keep game-style markets (title contains " vs ") to filter out player props
-    if (query) {
-      const apiPath = `markets?status=open&limit=100&search=${encodeURIComponent(query)}`;
-      const data = await kalshiRequest(apiPath);
-      if (data && data.markets) {
-        const gameMarkets = data.markets.filter(
-          (m) => m.title && m.title.toLowerCase().includes(" vs ")
-        );
-        results.push(...applyTimeFilter(gameMarkets));
-      }
-    }
 
     // Deduplicate — group by event_ticker, keep only one market per game
     const seen = {};
@@ -1565,7 +1562,7 @@ function GameWidget({
 
 // ─── SEARCH TAB ───────────────────────────────────────────────────────────────
 function SearchTab({ onAddGame, dashboardIds }) {
-  const [query, setQuery] = useState("ncaa championship");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
