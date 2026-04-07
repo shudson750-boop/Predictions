@@ -182,6 +182,25 @@ async function kalshiRequest(path) {
 // Search for sports markets matching a query
 // liveOnly: only return games currently in progress (close time within ±4h)
 // default: return all of today's games
+// Series tickers for supported leagues — confirmed from Kalshi URLs
+const SPORTS_SERIES = [
+  "KXNBAGAME",    // NBA
+  "KXNFLGAME",    // NFL
+  "KXNCAAMBGAME", // NCAAB
+  "KXNCAAFGAME",  // NCAAF
+  "KXUCLGAME",    // UEFA Champions League
+  "KXEPLGAME",    // English Premier League
+];
+
+// Returns true if a market title looks like a single game (not a parlay/combo)
+function isSingleGameMarket(title = "") {
+  const t = title.toLowerCase();
+  if (t.includes("parlay") || t.includes(" and ") || t.includes(" & ")) return false;
+  const atCount = (t.match(/ at /g) || []).length;
+  const vsCount = (t.match(/ vs\.? /g) || []).length;
+  return (atCount + vsCount) <= 1;
+}
+
 async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
   try {
     const results = [];
@@ -199,35 +218,24 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
       return expTime >= pastWindow && expTime <= new Date(now.getTime() + 14 * 24 * 3600 * 1000);
     });
 
-    // Search all open events by title — paginate until found or exhausted
-    const terms = query ? query.toLowerCase().split(/\s+/).filter(Boolean) : [];
-    const matchesQuery = (e) =>
-      !terms.length || (e.title && terms.every((t) => e.title.toLowerCase().includes(t)));
-
-    const matchingEvents = [];
-    let cursor = null;
-    let pages = 0;
-    do {
-      let apiPath = `events?status=open&limit=200`;
-      if (cursor) apiPath += `&cursor=${encodeURIComponent(cursor)}`;
-      const data = await kalshiRequest(apiPath);
-      if (data && data.events) {
-        matchingEvents.push(...data.events.filter(matchesQuery));
-      }
-      cursor = data?.cursor || null;
-      pages++;
-      // Stop once we have results, or after 20 pages (~4000 events) to avoid infinite loop
-      if (matchingEvents.length > 0 || pages >= 20) break;
-    } while (cursor);
-
-    // Fetch markets for each matching event
-    for (const event of matchingEvents) {
-      const ticker = event.event_ticker;
-      if (!ticker) continue;
-      const mData = await kalshiRequest(`markets?event_ticker=${encodeURIComponent(ticker)}&status=open&limit=100`);
-      if (mData && mData.markets) {
-        results.push(...applyTimeFilter(mData.markets));
-      }
+    for (const series of SPORTS_SERIES) {
+      let cursor = null;
+      do {
+        let apiPath = `markets?status=open&limit=100&series_ticker=${encodeURIComponent(series)}`;
+        if (cursor) apiPath += `&cursor=${encodeURIComponent(cursor)}`;
+        const data = await kalshiRequest(apiPath);
+        if (data && data.markets) {
+          let markets = data.markets.filter((m) => isSingleGameMarket(m.title));
+          if (query) {
+            const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+            markets = markets.filter((m) =>
+              m.title && terms.every((t) => m.title.toLowerCase().includes(t))
+            );
+          }
+          results.push(...applyTimeFilter(markets));
+        }
+        cursor = data?.cursor || null;
+      } while (cursor);
     }
 
 
@@ -364,11 +372,12 @@ function kalshiMarketToGame(market) {
 }
 
 function detectSport(ticker = "") {
+  if (ticker.startsWith("KXNCAAMB")) return "🏀 NCAAB";
+  if (ticker.startsWith("KXNCAAF"))  return "🏈 NCAAF";
   if (ticker.startsWith("KXNBA"))    return "🏀 NBA";
   if (ticker.startsWith("KXNFL"))    return "🏈 NFL";
-  if (ticker.startsWith("KXNHL"))    return "🏒 NHL";
-  if (ticker.startsWith("KXNCAAMB")) return "🏀 NCAAB";
-  if (ticker.startsWith("KXNCAAFB")) return "🏈 NCAAF";
+  if (ticker.startsWith("KXUCLGAME") || ticker.startsWith("KXUCL")) return "⚽ UCL";
+  if (ticker.startsWith("KXEPLGAME") || ticker.startsWith("KXEPL")) return "⚽ EPL";
   return "🏆 Sports";
 }
 
@@ -376,9 +385,10 @@ function detectSport(ticker = "") {
 const ESPN_URLS = {
   "🏀 NBA":   "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
   "🏈 NFL":   "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
-  "🏒 NHL":   "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard",
   "🏀 NCAAB": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard",
   "🏈 NCAAF": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard",
+  "⚽ UCL":   "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard",
+  "⚽ EPL":   "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard",
 };
 
 async function fetchESPNEvents(sport) {
@@ -1562,7 +1572,7 @@ function GameWidget({
 
 // ─── SEARCH TAB ───────────────────────────────────────────────────────────────
 function SearchTab({ onAddGame, dashboardIds }) {
-  const [query, setQuery] = useState("michigan uconn");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
@@ -1608,7 +1618,15 @@ function SearchTab({ onAddGame, dashboardIds }) {
     setLiveNowMode((prev) => !prev);
   };
 
-  const sports = ["all", ...new Set(results.map((g) => g.sport))];
+  const LEAGUE_FILTERS = [
+    { key: "all",     label: "All" },
+    { key: "🏀 NBA",  label: "🏀 NBA" },
+    { key: "🏈 NFL",  label: "🏈 NFL" },
+    { key: "🏀 NCAAB",label: "🏀 NCAAB" },
+    { key: "🏈 NCAAF",label: "🏈 NCAAF" },
+    { key: "⚽ UCL",  label: "⚽ UCL" },
+    { key: "⚽ EPL",  label: "⚽ EPL" },
+  ];
   const filtered = results.filter(
     (g) => sportFilter === "all" || g.sport === sportFilter
   );
@@ -1670,37 +1688,26 @@ function SearchTab({ onAddGame, dashboardIds }) {
         </button>
       </div>
 
-      {results.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            gap: 7,
-            marginBottom: 14,
-            flexWrap: "wrap",
-          }}
-        >
-          {sports.map((s) => (
-            <button
-              key={s}
-              style={{
-                padding: "5px 12px",
-                borderRadius: 14,
-                border: `1px solid ${
-                  sportFilter === s ? T.btnPrimary : T.badgeBorder
-                }`,
-                background: sportFilter === s ? T.btnPrimary : T.badge,
-                color: sportFilter === s ? T.btnPrimaryTxt : T.textSecond,
-                cursor: "pointer",
-                fontSize: "0.73rem",
-                fontWeight: sportFilter === s ? 600 : 400,
-              }}
-              onClick={() => setSportFilter(s)}
-            >
-              {s === "all" ? "All Sports" : s}
-            </button>
-          ))}
-        </div>
-      )}
+      <div style={{ display: "flex", gap: 7, marginBottom: 14, flexWrap: "wrap" }}>
+        {LEAGUE_FILTERS.map(({ key, label }) => (
+          <button
+            key={key}
+            style={{
+              padding: "5px 12px",
+              borderRadius: 14,
+              border: `1px solid ${sportFilter === key ? T.btnPrimary : T.badgeBorder}`,
+              background: sportFilter === key ? T.btnPrimary : T.badge,
+              color: sportFilter === key ? T.btnPrimaryTxt : T.textSecond,
+              cursor: "pointer",
+              fontSize: "0.73rem",
+              fontWeight: sportFilter === key ? 600 : 400,
+            }}
+            onClick={() => setSportFilter(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* Status messages */}
       {!KALSHI_KEY && (
