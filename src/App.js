@@ -199,33 +199,25 @@ async function searchKalshiMarkets(query, { liveOnly = false } = {}) {
       return expTime >= pastWindow && expTime <= new Date(now.getTime() + 14 * 24 * 3600 * 1000);
     });
 
-    // Search all open events by title — avoids needing to know the series ticker
+    // Search all open events by title — paginate until found or exhausted
+    const terms = query ? query.toLowerCase().split(/\s+/).filter(Boolean) : [];
+    const matchesQuery = (e) =>
+      !terms.length || (e.title && terms.every((t) => e.title.toLowerCase().includes(t)));
+
     const matchingEvents = [];
     let cursor = null;
+    let pages = 0;
     do {
       let apiPath = `events?status=open&limit=200`;
       if (cursor) apiPath += `&cursor=${encodeURIComponent(cursor)}`;
       const data = await kalshiRequest(apiPath);
       if (data && data.events) {
-        const filtered = query
-          ? data.events.filter((e) => e.title && e.title.toLowerCase().includes(query.toLowerCase()))
-          : data.events;
-        matchingEvents.push(...filtered);
+        matchingEvents.push(...data.events.filter(matchesQuery));
       }
       cursor = data?.cursor || null;
-      // Stop after finding matches or after 3 pages to keep it fast
-      if (matchingEvents.length > 0 || !cursor) break;
-      if ((matchingEvents.length === 0) && cursor) {
-        const page2 = await kalshiRequest(`events?status=open&limit=200&cursor=${encodeURIComponent(cursor)}`);
-        if (page2?.events) {
-          const f2 = query
-            ? page2.events.filter((e) => e.title && e.title.toLowerCase().includes(query.toLowerCase()))
-            : page2.events;
-          matchingEvents.push(...f2);
-        }
-        cursor = page2?.cursor || null;
-        break;
-      }
+      pages++;
+      // Stop once we have results, or after 20 pages (~4000 events) to avoid infinite loop
+      if (matchingEvents.length > 0 || pages >= 20) break;
     } while (cursor);
 
     // Fetch markets for each matching event
@@ -1570,7 +1562,7 @@ function GameWidget({
 
 // ─── SEARCH TAB ───────────────────────────────────────────────────────────────
 function SearchTab({ onAddGame, dashboardIds }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState("michigan uconn");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
